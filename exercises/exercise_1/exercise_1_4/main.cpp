@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-
+#include <math.h>
 
 // function declarations
 // ---------------------
@@ -179,22 +179,44 @@ void createArrayBuffer(const std::vector<float> &array, unsigned int &VBO){
 void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int &vertexCount){
 
     unsigned int posVBO, colorVBO;
-    createArrayBuffer(std::vector<float>{
-            // position
-            0.0f,  0.0f, 0.0f,
-            0.5f,  0.0f, 0.0f,
-            0.5f,  0.5f, 0.0f
-    }, posVBO);
 
-    createArrayBuffer( std::vector<float>{
-            // color
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f,
-            1.0f,  0.0f, 0.0f
-    }, colorVBO);
+    int N = 24;
+
+    std::vector<float> vertices(3*3*N);
+    std::vector<float> colors(3*3*N);
+
+    double pi = 2*acos(0.0);
+    printf("Pi=%f\n",pi);
+    for(int i=0; i<N;i++){
+        float delta = 2*pi/N;
+        printf("Delta=%f, (%f, %f)\n", delta, cos(delta*i), sin(delta*i));
+        vertices[9*i + 0] = cos(delta*i);
+        vertices[9*i + 1] = sin(delta*i);
+        vertices[9*i + 2] = 0;
+        vertices[9*i + 3 + 0] = cos(delta*(i+1));
+        vertices[9*i + 3 + 1] = sin(delta*(i+1));
+        vertices[9*i + 3 + 2] = 0;
+        vertices[9*i + 6 + 0] = 0;
+        vertices[9*i + 6 + 1] = 0;
+        vertices[9*i + 6 + 2] = 0;
+
+        colors[9*i+0] = 0.5f + 0.5f*cos(delta*i);
+        colors[9*i+1] = 0.5f + 0.5f*sin(delta*(i+1));
+        colors[9*i+2] = 0.0f;
+        colors[9*i+3] = 0.5f + 0.5f*cos(delta*(i+1));
+        colors[9*i+4] = 0.5f + 0.5f*sin(delta*(i+1));
+        colors[9*i+5] = 0.0f;
+        colors[9*i+6] = 0.5f + 0.5f*cos(delta*i);
+        colors[9*i+7] = 0.5f + 0.5f*sin(delta*(i+1));
+        colors[9*i+8] = 1.0f;
+    }
+
+    createArrayBuffer(vertices, posVBO);
+
+    createArrayBuffer( colors, colorVBO);
 
     // tell how many vertices to draw
-    vertexCount = 3;
+    vertexCount = 3*N;
 
     // create a vertex array object (VAO) on OpenGL and save a handle to it
     glGenVertexArrays(1, &VAO);
