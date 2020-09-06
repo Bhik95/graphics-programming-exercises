@@ -4,7 +4,6 @@ layout (location = 0) in vec2 pos;   // the position variable has attribute posi
 layout (location = 1) in vec2 velocity;
 layout (location = 2) in float timeOfBirth;
 
-
 // TODO 2.3 create and use a float uniform for currentTime
 uniform float currentTime;
 

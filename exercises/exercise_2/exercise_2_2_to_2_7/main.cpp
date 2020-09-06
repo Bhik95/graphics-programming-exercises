@@ -70,7 +70,8 @@ int main()
     // enable built in variable gl_PointSize in the vertex shader
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
     // TODO 2.4 enable alpha blending (for transparency)
-
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
 
     createVertexBufferObject();
 
