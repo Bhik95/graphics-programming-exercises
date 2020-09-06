@@ -97,7 +97,10 @@ int main()
         // set shader program and the uniform value "currentTime"
         shaderProgram->use();
         // TODO 2.3 set uniform variable related to current time
-
+        float timeValue = glfwGetTime();
+        int currentTimeLocation = glGetUniformLocation(shaderProgram->ID, "currentTime");
+        glUseProgram(shaderProgram->ID);
+        glUniform1f(currentTimeLocation, timeValue);
 
         // render particles
         glBindVertexArray(VAO);
@@ -136,12 +139,12 @@ void bindAttributes(){
     int velSize = 2;
     GLuint velocityLocation = glGetAttribLocation(shaderProgram->ID, "velocity");
     glEnableVertexAttribArray(velocityLocation);
-    glVertexAttribPointer(velocityLocation, velSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)(posSize * sizeOfFloat));
+    glVertexAttribPointer(velocityLocation, velSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)(2 * sizeOfFloat));
 
     int timeOfBirthSize = 1;
     GLuint timeOfBirthLocation = glGetAttribLocation(shaderProgram->ID, "timeOfBirth");
     glEnableVertexAttribArray(timeOfBirthLocation);
-    glVertexAttribPointer(timeOfBirthLocation, timeOfBirthSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)((posSize+velSize) * sizeOfFloat));
+    glVertexAttribPointer(timeOfBirthLocation, timeOfBirthSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)(4 * sizeOfFloat));
 
 }
 
