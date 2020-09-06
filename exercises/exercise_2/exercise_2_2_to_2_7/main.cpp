@@ -23,7 +23,7 @@ float lastX, lastY;                             // used to compute delta movemen
 float currentTime;
 unsigned int VAO, VBO;                          // vertex array and buffer objects
 const unsigned int vertexBufferSize = 65536;    // # of particles
-const unsigned int particleSize = 2;            // particle attributes, TODO 2.2 update the number of attributes in a particle
+const unsigned int particleSize = 5;            // particle attributes, TODO 2.2 update the number of attributes in a particle
 const unsigned int sizeOfFloat = 4;             // bytes in a float
 unsigned int particleId = 0;                    // keep track of last particle to be updated
 Shader *shaderProgram;                          // our shader program
@@ -133,6 +133,15 @@ void bindAttributes(){
     glVertexAttribPointer(vertexLocation, posSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, 0);
 
     // TODO 2.2 set velocity and timeOfBirth shader attributes
+    int velSize = 2;
+    GLuint velocityLocation = glGetAttribLocation(shaderProgram->ID, "velocity");
+    glEnableVertexAttribArray(velocityLocation);
+    glVertexAttribPointer(velocityLocation, velSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)(posSize * sizeOfFloat));
+
+    int timeOfBirthSize = 1;
+    GLuint timeOfBirthLocation = glGetAttribLocation(shaderProgram->ID, "timeOfBirth");
+    glEnableVertexAttribArray(timeOfBirthLocation);
+    glVertexAttribPointer(timeOfBirthLocation, timeOfBirthSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*)((posSize+velSize) * sizeOfFloat));
 
 }
 
@@ -160,6 +169,11 @@ void emitParticle(float x, float y, float velocityX, float velocityY, float time
     data[0] = x,
     data[1] = y;
     // TODO 2.2 , add velocity and timeOfBirth to the particle data
+    data[2] = velocityX;
+    data[3] = velocityY;
+    data[4] = timeOfBirth;
+
+
 
     // upload only parts of the buffer
     glBufferSubData(GL_ARRAY_BUFFER, particleId * particleSize * sizeOfFloat, particleSize * sizeOfFloat, data);
