@@ -1,23 +1,27 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+
 #include <vector>
 #include <chrono>
-#include <shader_s.h>
+#include <shader.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "glmutils.h"
 
-// the plane model is stored in the file so that we do not need to deal with model loading yet
 #include "plane_model.h"
+#include "primitives.h"
 
-// structure to hold the info necessary to render an object
+
+// structure to hold render info
+// -----------------------------
 struct SceneObject{
     unsigned int VAO;
     unsigned int vertexCount;
 };
+
 
 // function declarations
 // ---------------------
@@ -26,33 +30,38 @@ unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array);
 unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices);
 void setup();
 void drawSceneObject(SceneObject obj);
+void drawArrow();
 void drawPlane();
 
-// glfw functions
-// --------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
 
-// settings
-// --------
+// glfw and input functions
+// ------------------------
+void cursorInNdc(float screenX, float screenY, int screenW, int screenH, float &x, float &y);
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void button_input_callback(GLFWwindow* window, int button, int action, int mods);
+void key_input_callback(GLFWwindow* window, int button, int other, int action, int mods);
+void cursor_input_callback(GLFWwindow* window, double posX, double posY);
+
+
+// screen settings
+// ---------------
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
 
-// plane parts
-// -----------
+
+// global variables used for rendering
+// -----------------------------------
 SceneObject planeBody;
 SceneObject planeWing;
 SceneObject planePropeller;
-
-float currentTime;
 Shader* shaderProgram;
 
-// global variables used to set the plane and communicate
-// its state between the input and draw functions
-float planeSpeed = 0.005f;
-glm::vec2 planePosition = glm::vec2(0.0,0.0);
-float planeRotation = 0.0f;
-float tilt = 0;
+// global variables used for control
+// -----------------------------------
+float currentTime;
+glm::vec2 clickStart(0.0f), clickEnd(0.0f);
+
+// TODO 4.1 and 4.2 - global variables you might need
 
 int main()
 {
@@ -69,7 +78,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 3", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 4", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -78,6 +87,11 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    // NEW!
+    // callbacks for all inputs
+    glfwSetMouseButtonCallback(window, button_input_callback);
+    glfwSetCursorPosCallback(window, cursor_input_callback);
+    glfwSetKeyCallback(window, key_input_callback);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -86,10 +100,6 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
-    // build and compile our shader program
-    // ------------------------------------
-    shaderProgram = new Shader("shader.vert", "shader.frag");
 
     // the model was originally baked with lights for a left handed coordinate system, we are "fixing" the z-coordinate
     // so we can work with a right handed coordinate system
@@ -101,7 +111,6 @@ int main()
     // ---------------------------------------
     setup();
 
-    // NEW!
     // set up the z-buffer
     glDepthRange(1,-1); // make the NDC a right handed coordinate system, with the camera pointing towards -z
     glEnable(GL_DEPTH_TEST); // turn on z-buffer depth test
@@ -121,15 +130,15 @@ int main()
         std::chrono::duration<float> appTime = frameStart - begin;
         currentTime = appTime.count();
 
-        processInput(window);
-
         glClearColor(0.5f, 0.5f, 1.0f, 1.0f);
 
-        // NEW!
         // notice that we also need to clear the depth buffer (aka z-buffer) every new frame
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shaderProgram->use();
+        // NEW!
+        // we now have a function to draw the arrow too
+        drawArrow();
         drawPlane();
 
         glfwSwapBuffers(window);
@@ -142,74 +151,69 @@ int main()
         }
     }
 
+    delete shaderProgram;
+
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
 }
 
+void drawArrow(){
+    // TODO - 4.2 implement the draw arrow
+
+}
 
 void drawPlane(){
-    // TODO 3.all create and apply your transformation matrices here
-    //  you will need to transform the pose of the pieces of the plane by manipulating glm matrices and uploading a
-    //  uniform mat4 model matrix to the vertex shader
+    // TODO - 4.1 translate and rotate the plane
 
-    // rotation matrix based on current planeRotation
-    glm::mat4 rotation = glm::rotateZ(planeRotation);
+    glm::mat4 rotation(1.0f);
+    glm::mat4 translation(1.0f);
 
-    // add rotated translation step in the xy plane to planePosition
-    planePosition.x += (rotation * glm::vec4(0, planeSpeed, 0, 1)).x;
-    planePosition.y += (rotation * glm::vec4(0, planeSpeed, 0, 1)).y;
-
-    // wrap position
-    planePosition.x *= (abs(planePosition.x) > 1.f) ? -1.f : 1.0;
-    planePosition.y *= (abs(planePosition.y) > 1.f) ? -1.f : 1.0;
-
-    // position matrix based on current planePosition
-    glm::mat4 translation = glm::translate(planePosition.x, planePosition.y, 0);
 
     // scale matrix to make the plane 10 times smaller
     glm::mat4 scale = glm::scale(.1f, .1f, .1f);
 
-    auto planeLeaning = glm::rotateY(glm::radians<float>(tilt));
-
     // final plane transformation, matrices are applied in the right to left order in the convention we use in the class
-    // 10 times smaller -> leaning toward the turn direction -> rotation -> position
-    glm::mat4 model = translation * rotation * planeLeaning * scale;
+    // 10 times smaller -> leaning toward the turn direction -> plane rotation -> plane position
+    glm::mat4 model = translation * rotation * scale;
 
-    // plane assembly matrices
-    glm::mat4 mirrorX = glm::scale(-1, 1, 1);
-    glm::mat4 translateWings = glm::translate(0, -0.5, 0);
-    glm::mat4 translateProp = glm::translate(0, 0.5, 0);
-    glm::mat4 rotateProp = glm::rotateX(glm::half_pi<float>());
-    glm::mat4 scaleHalf = glm::scale(0.5, 0.5, 0.5);
-    glm::mat4 animateProp = glm::rotateY(currentTime * 10);
-
-    // get the id of the uniform called model
-    unsigned int uniformID = glGetUniformLocation(shaderProgram->ID, "model");
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &model[0][0]);
-    // body
+    // draw plane body and right wing
+    shaderProgram->setMat4("model", model);
     drawSceneObject(planeBody);
-    // right wing
     drawSceneObject(planeWing);
 
-    // back right wing
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * translateWings * scaleHalf)[0][0]);
-    drawSceneObject(planeWing);
+    // propeller,
+    // half size -> make perpendicular to plane forward axis -> rotate around plane forward axis -> move to the tip of the plane
+    glm::mat4 propeller = model * glm::translate(.0f, .5f, .0f) *
+                          glm::rotate(currentTime * 10.0f, glm::vec3(0.0,1.0,0.0)) *
+                          glm::rotate(glm::half_pi<float>(), glm::vec3(1.0,0.0,0.0)) *
+                          glm::scale(.5f, .5f, .5f);
 
-    // left wing
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * mirrorX)[0][0]);
-    drawSceneObject(planeWing);
-
-    // back left wing
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * translateWings * scaleHalf * mirrorX)[0][0]);
-    drawSceneObject(planeWing);
-
-    // propeller
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * translateProp * animateProp * rotateProp * scaleHalf)[0][0]);
+    shaderProgram->setMat4("model", propeller);
     drawSceneObject(planePropeller);
 
+    // right wing back,
+    // half size -> move to the back
+    glm::mat4 wingRightBack = model * glm::translate(0.0f, -0.5f, 0.0f) * glm::scale(.5f,.5f,.5f);
+    shaderProgram->setMat4("model", wingRightBack);
+    drawSceneObject(planeWing);
+
+    // left wing,
+    // mirror in x
+    glm::mat4 wingLeft = model * glm::scale(-1.0f, 1.0f, 1.0f);
+    shaderProgram->setMat4("model", wingLeft);
+    drawSceneObject(planeWing);
+
+    // left wing back,
+    // half size + mirror in x -> move to the back
+    glm::mat4 wingLeftBack =  model *  glm::translate(0.0f, -0.5f, 0.0f) * glm::scale(-.5f,.5f,.5f);
+    shaderProgram->setMat4("model", wingLeftBack);
+    drawSceneObject(planeWing);
+
 }
+
+
 
 void drawSceneObject(SceneObject obj){
     glBindVertexArray(obj.VAO);
@@ -217,8 +221,8 @@ void drawSceneObject(SceneObject obj){
 }
 
 void setup(){
-
-    // TODO 3.3 you will need to load one additional object.
+    // initialize shaders
+    shaderProgram = new Shader("shader.vert", "shader.frag");
 
     // initialize plane body mesh objects
     planeBody.VAO = createVertexArray(planeBodyVertices, planeBodyColors, planeBodyIndices);
@@ -228,13 +232,15 @@ void setup(){
     planeWing.VAO = createVertexArray(planeWingVertices, planeWingColors, planeWingIndices);
     planeWing.vertexCount = planeWingIndices.size();
 
-    // initialize plane propeller mesh object
+    // initialize plane wing mesh objects
     planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
     planePropeller.vertexCount = planePropellerIndices.size();
+
+    // TODO 4.2 - load the arrow mesh
 }
 
 
-unsigned int createVertexArray(std::vector<float> &positions, std::vector<float> &colors, std::vector<unsigned int> &indices){
+unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices){
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
     // bind vertex array object
@@ -258,7 +264,7 @@ unsigned int createVertexArray(std::vector<float> &positions, std::vector<float>
     return VAO;
 }
 
-unsigned int createArrayBuffer(std::vector<float> &array){
+unsigned int createArrayBuffer(const std::vector<float> &array){
     unsigned int VBO;
     glGenBuffers(1, &VBO);
 
@@ -268,7 +274,7 @@ unsigned int createArrayBuffer(std::vector<float> &array){
     return VBO;
 }
 
-unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
+unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array){
     unsigned int EBO;
     glGenBuffers(1, &EBO);
 
@@ -278,25 +284,52 @@ unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
     return EBO;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+
+
+void cursorInNdc(float screenX, float screenY, int screenW, int screenH, float &x, float &y){
+    float xNdc = (float) screenX / (float) screenW * 2.0f - 1.0f;
+    float yNdc = (float) screenY / (float) screenH * 2.0f - 1.0f;
+    x = xNdc;
+    y = -yNdc;
+}
+
+
+void cursor_input_callback(GLFWwindow* window, double posX, double posY){
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS){
+        int screenW, screenH;
+        glfwGetWindowSize(window, &screenW, &screenH);
+        cursorInNdc(posX, posY, screenW, screenH, clickEnd.x, clickEnd.y);
+    }
+}
+
+
+void button_input_callback(GLFWwindow* window, int button, int action, int mods){
+    double screenX, screenY;
+    int screenW, screenH;
+    glfwGetCursorPos(window, &screenX, &screenY);
+    glfwGetWindowSize(window, &screenW, &screenH);
+
+    // TODO 4.1 and 4.2 - you may wish to update some of your global variables here
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        // set the start position
+        cursorInNdc(screenX, screenY, screenW, screenH, clickStart.x, clickStart.y);
+        // reset the end position
+        cursorInNdc(screenX, screenY, screenW, screenH, clickEnd.x, clickEnd.y);
+
+    }
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+        // set the end position
+        cursorInNdc(screenX, screenY, screenW, screenH, clickEnd.x, clickEnd.y);
+        // reset the start position
+        cursorInNdc(screenX, screenY, screenW, screenH, clickStart.x, clickStart.y);
+    }
+}
+
+
+void key_input_callback(GLFWwindow* window, int button, int other,int action, int mods){
+    if (button == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    // TODO 3.4 control the plane (turn left and right) using the A and D keys
-    // you will need to read A and D key press inputs
-    // if GLFW_KEY_A is GLFW_PRESS, plane turn left
-    // if GLFW_KEY_D is GLFW_PRESS, plane turn right
-    tilt =  0;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        planeRotation += 0.02f;
-        tilt = -45;
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        planeRotation -= 0.02f;
-        tilt = +45;
-    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

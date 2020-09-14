@@ -1,19 +1,20 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+
 #include <vector>
 #include <chrono>
-#include <shader_s.h>
+#include <shader.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "glmutils.h"
 
-// the plane model is stored in the file so that we do not need to deal with model loading yet
-#include "plane_model.h"
+#include "primitives.h"
 
-// structure to hold the info necessary to render an object
+// structure to hold render info
+// -----------------------------
 struct SceneObject{
     unsigned int VAO;
     unsigned int vertexCount;
@@ -26,33 +27,30 @@ unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array);
 unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices);
 void setup();
 void drawSceneObject(SceneObject obj);
-void drawPlane();
+void drawObject();
 
-// glfw functions
-// --------------
+// glfw and input functions
+// ------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void button_input_callback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow *window);
 
-// settings
-// --------
+// screen settings
+// ---------------
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
 
-// plane parts
-// -----------
-SceneObject planeBody;
-SceneObject planeWing;
-SceneObject planePropeller;
-
-float currentTime;
+// global variables used for rendering
+// -----------------------------------
+SceneObject cube;
 Shader* shaderProgram;
 
-// global variables used to set the plane and communicate
-// its state between the input and draw functions
-float planeSpeed = 0.005f;
-glm::vec2 planePosition = glm::vec2(0.0,0.0);
-float planeRotation = 0.0f;
-float tilt = 0;
+// global variables used for control
+// ---------------------------------
+float currentTime;
+glm::vec3 clickStart(0.0f), clickEnd(0.0f);
+glm::mat4 storedRotation(1.0f);
+
 
 int main()
 {
@@ -69,7 +67,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 3", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 4", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -78,6 +76,7 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetMouseButtonCallback(window, button_input_callback);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -87,21 +86,10 @@ int main()
         return -1;
     }
 
-    // build and compile our shader program
-    // ------------------------------------
-    shaderProgram = new Shader("shader.vert", "shader.frag");
-
-    // the model was originally baked with lights for a left handed coordinate system, we are "fixing" the z-coordinate
-    // so we can work with a right handed coordinate system
-    invertModelZ(planeBodyVertices);
-    invertModelZ(planeWingVertices);
-    invertModelZ(planePropellerVertices);
-
     // setup mesh objects
     // ---------------------------------------
     setup();
 
-    // NEW!
     // set up the z-buffer
     glDepthRange(1,-1); // make the NDC a right handed coordinate system, with the camera pointing towards -z
     glEnable(GL_DEPTH_TEST); // turn on z-buffer depth test
@@ -123,14 +111,13 @@ int main()
 
         processInput(window);
 
-        glClearColor(0.5f, 0.5f, 1.0f, 1.0f);
+        glClearColor(0.6f, 0.6f, 0.6f, 1.0f);
 
-        // NEW!
         // notice that we also need to clear the depth buffer (aka z-buffer) every new frame
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shaderProgram->use();
-        drawPlane();
+        drawObject();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -142,74 +129,63 @@ int main()
         }
     }
 
+    delete shaderProgram;
+
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
 }
 
+glm::mat4 trackballRotation(){
+    glm::vec2 mouseVec =clickStart-clickEnd;
+    if (glm::length(mouseVec) < 1.e-5f)
+        return glm::mat4(1.0f);
 
-void drawPlane(){
-    // TODO 3.all create and apply your transformation matrices here
-    //  you will need to transform the pose of the pieces of the plane by manipulating glm matrices and uploading a
-    //  uniform mat4 model matrix to the vertex shader
+    float dotProd = 0;
+    float angle = 0;
+    glm::vec3 u;
+    glm::vec3 crossProd;
+    float r = 1.0f; // trackball radius
 
-    // rotation matrix based on current planeRotation
-    glm::mat4 rotation = glm::rotateZ(planeRotation);
+    // TODO 4.3 - implement the trackball rotations here
 
-    // add rotated translation step in the xy plane to planePosition
-    planePosition.x += (rotation * glm::vec4(0, planeSpeed, 0, 1)).x;
-    planePosition.y += (rotation * glm::vec4(0, planeSpeed, 0, 1)).y;
+    // TODO - prepare the values you will use for the trackball
 
-    // wrap position
-    planePosition.x *= (abs(planePosition.x) > 1.f) ? -1.f : 1.0;
-    planePosition.y *= (abs(planePosition.y) > 1.f) ? -1.f : 1.0;
+    // TODO - Shoemake trackball
 
-    // position matrix based on current planePosition
-    glm::mat4 translation = glm::translate(planePosition.x, planePosition.y, 0);
+    // TODO - Anderson trackball
+
+    // correction to the rotation angle
+    angle += dotProd < 0.f ? glm::pi<float>() : 0.f;
+    glm::mat4 rotation = glm::rotate(abs(angle), u);
+
+    return rotation;
+}
+
+
+void drawObject(){
 
     // scale matrix to make the plane 10 times smaller
-    glm::mat4 scale = glm::scale(.1f, .1f, .1f);
+    glm::mat4 scale = glm::scale(.5f, .5f, .5f);
 
-    auto planeLeaning = glm::rotateY(glm::radians<float>(tilt));
+    // final object transformation
+    // scale -> rotations
+    glm::mat4 model = trackballRotation() * storedRotation * scale;
 
-    // final plane transformation, matrices are applied in the right to left order in the convention we use in the class
-    // 10 times smaller -> leaning toward the turn direction -> rotation -> position
-    glm::mat4 model = translation * rotation * planeLeaning * scale;
+    // TODO 4.5 - create a project using the glm::perspectiveFov function,
+    //  and use it to view the object (i.e. multiply with model)
 
-    // plane assembly matrices
-    glm::mat4 mirrorX = glm::scale(-1, 1, 1);
-    glm::mat4 translateWings = glm::translate(0, -0.5, 0);
-    glm::mat4 translateProp = glm::translate(0, 0.5, 0);
-    glm::mat4 rotateProp = glm::rotateX(glm::half_pi<float>());
-    glm::mat4 scaleHalf = glm::scale(0.5, 0.5, 0.5);
-    glm::mat4 animateProp = glm::rotateY(currentTime * 10);
 
-    // get the id of the uniform called model
-    unsigned int uniformID = glGetUniformLocation(shaderProgram->ID, "model");
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &model[0][0]);
-    // body
-    drawSceneObject(planeBody);
-    // right wing
-    drawSceneObject(planeWing);
+    // draw object
+    shaderProgram->setMat4("model", model);
+    drawSceneObject(cube);
 
-    // back right wing
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * translateWings * scaleHalf)[0][0]);
-    drawSceneObject(planeWing);
-
-    // left wing
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * mirrorX)[0][0]);
-    drawSceneObject(planeWing);
-
-    // back left wing
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * translateWings * scaleHalf * mirrorX)[0][0]);
-    drawSceneObject(planeWing);
-
-    // propeller
-    glUniformMatrix4fv(uniformID, 1, GL_FALSE, &(model * translateProp * animateProp * rotateProp * scaleHalf)[0][0]);
-    drawSceneObject(planePropeller);
+    // TODO 4.4 - replace the cube with the plane from exercise 4.1/4.2
 
 }
+
+
 
 void drawSceneObject(SceneObject obj){
     glBindVertexArray(obj.VAO);
@@ -217,31 +193,22 @@ void drawSceneObject(SceneObject obj){
 }
 
 void setup(){
+    // initialize shaders
+    shaderProgram = new Shader("shader.vert", "shader.frag");
 
-    // TODO 3.3 you will need to load one additional object.
-
-    // initialize plane body mesh objects
-    planeBody.VAO = createVertexArray(planeBodyVertices, planeBodyColors, planeBodyIndices);
-    planeBody.vertexCount = planeBodyIndices.size();
-
-    // initialize plane wing mesh objects
-    planeWing.VAO = createVertexArray(planeWingVertices, planeWingColors, planeWingIndices);
-    planeWing.vertexCount = planeWingIndices.size();
-
-    // initialize plane propeller mesh object
-    planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
-    planePropeller.vertexCount = planePropellerIndices.size();
+    cube.VAO = createVertexArray(cubeVertices, cubeColors, cubeIndices);
+    cube.vertexCount = cubeIndices.size();
 }
 
 
-unsigned int createVertexArray(std::vector<float> &positions, std::vector<float> &colors, std::vector<unsigned int> &indices){
+unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices){
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
     // bind vertex array object
     glBindVertexArray(VAO);
 
     // set vertex shader attribute "pos"
-    createArrayBuffer(positions); // creates and bind  the VBO
+    createArrayBuffer(positions); // creates and bind the VBO
     int posAttributeLocation = glGetAttribLocation(shaderProgram->ID, "pos");
     glEnableVertexAttribArray(posAttributeLocation);
     glVertexAttribPointer(posAttributeLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -258,7 +225,7 @@ unsigned int createVertexArray(std::vector<float> &positions, std::vector<float>
     return VAO;
 }
 
-unsigned int createArrayBuffer(std::vector<float> &array){
+unsigned int createArrayBuffer(const std::vector<float> &array){
     unsigned int VBO;
     glGenBuffers(1, &VBO);
 
@@ -268,7 +235,7 @@ unsigned int createArrayBuffer(std::vector<float> &array){
     return VBO;
 }
 
-unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
+unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array){
     unsigned int EBO;
     glGenBuffers(1, &EBO);
 
@@ -278,26 +245,48 @@ unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
     return EBO;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
+
+void cursorInNdc(GLFWwindow* window, float &x, float &y){
+    double xPos, yPos;
+    int xScreen, yScreen;
+    glfwGetCursorPos(window, &xPos, &yPos);
+    glfwGetWindowSize(window, &xScreen, &yScreen);
+    float xNdc = (float) xPos / (float) xScreen * 2.0f - 1.0f;
+    float yNdc = (float) yPos / (float) yScreen * 2.0f - 1.0f;
+    yNdc = -yNdc;
+    x = xNdc;
+    y = yNdc;
+}
+
+
+
+
 void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    // TODO 3.4 control the plane (turn left and right) using the A and D keys
-    // you will need to read A and D key press inputs
-    // if GLFW_KEY_A is GLFW_PRESS, plane turn left
-    // if GLFW_KEY_D is GLFW_PRESS, plane turn right
-    tilt =  0;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        planeRotation += 0.02f;
-        tilt = -45;
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        planeRotation -= 0.02f;
-        tilt = +45;
+
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS){
+        cursorInNdc(window, clickEnd.x, clickEnd.y);
     }
 }
+
+
+
+void button_input_callback(GLFWwindow* window, int button, int action, int mods){
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        cursorInNdc(window, clickStart.x, clickStart.y);
+    }
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+        cursorInNdc(window, clickEnd.x, clickEnd.y);
+        // store current rotation at the end of a click
+        storedRotation = trackballRotation() * storedRotation;
+        // reset click positions
+        clickStart.x = clickStart.y = clickEnd.x = clickEnd.y = 0;
+    }
+}
+
+
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
