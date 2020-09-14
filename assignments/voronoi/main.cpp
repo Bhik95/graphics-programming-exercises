@@ -225,7 +225,7 @@ void button_input_callback(GLFWwindow* window, int button, int action, int mods)
         float g = (float) (rand()) / max_rand;
         float b = (float) (rand()) / max_rand;
         sceneObjects.push_back(instantiateCone(r,g,b, xNdc, yNdc));
-        std::cout << "(" << r << ", " << g << ", " << b << ")" << std::endl;
+        //std::cout << "(" << r << ", " << g << ", " << b << ")" << std::endl;
     }
 }
 
@@ -240,15 +240,12 @@ void key_input_callback(GLFWwindow* window, int button, int other,int action, in
     //   and so on.
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS){
         activeShader = &shaderPrograms[0];
-        std::cout << "KEY 1" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS){
         activeShader = &shaderPrograms[1];
-        std::cout << "KEY 2" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS){
         activeShader = &shaderPrograms[2];
-        std::cout << "KEY 3" << std::endl;
     }
 
 }
