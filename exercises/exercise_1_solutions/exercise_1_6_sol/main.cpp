@@ -63,7 +63,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 1.6", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -178,7 +178,7 @@ void createArrayBuffer(const std::vector<float> &array, unsigned int &VBO){
 // -------------------------------------------------------------------------------------------------------
 void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int &vertexCount){
 
-    unsigned int posColorVBO;
+    unsigned int dataVBO;//, colorVBO;
     createArrayBuffer(std::vector<float>{
             // position
             0.0f,  0.0f, 0.0f,
@@ -188,9 +188,14 @@ void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int
             1.0f,  0.0f, 0.0f,
             1.0f,  0.0f, 0.0f,
             1.0f,  0.0f, 0.0f
-    }, posColorVBO);
+    }, dataVBO);
 
-
+//    createArrayBuffer( std::vector<float>{
+//            // color
+//            1.0f,  0.0f, 0.0f,
+//            1.0f,  0.0f, 0.0f,
+//            1.0f,  0.0f, 0.0f
+//    }, colorVBO);
 
     // tell how many vertices to draw
     vertexCount = 3;
@@ -201,8 +206,8 @@ void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int
     // bind vertex array object
     glBindVertexArray(VAO);
 
-    // set vertex shader attribute "aPos" and "aColor", both are in the same VBO this time
-    glBindBuffer(GL_ARRAY_BUFFER, posColorVBO);
+    // set vertex shader attribute "aPos"
+    glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 
     int posSize = 3;
     int posAttributeLocation = glGetAttribLocation(shaderProgram, "aPos");
@@ -210,11 +215,14 @@ void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int
     glEnableVertexAttribArray(posAttributeLocation);
     glVertexAttribPointer(posAttributeLocation, posSize, GL_FLOAT, GL_FALSE, 0, 0);
 
+    // set vertex shader attribute "aColor"
+    //glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+
     int colorSize = 3;
     int colorAttributeLocation = glGetAttribLocation(shaderProgram, "aColor");
 
     glEnableVertexAttribArray(colorAttributeLocation);
-    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, 0, (void*)(vertexCount * posSize * sizeof(float)));
+    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, 0, (void*)(vertexCount * 3 * sizeof(float)));
 
 }
 

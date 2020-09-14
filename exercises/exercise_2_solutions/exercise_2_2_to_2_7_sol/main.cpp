@@ -70,7 +70,6 @@ int main()
     // enable built in variable gl_PointSize in the vertex shader
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
     // TODO 2.4 enable alpha blending (for transparency)
-
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
 
@@ -135,16 +134,17 @@ void bindAttributes(){
     glVertexAttribPointer(vertexLocation, posSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, 0);
 
     // TODO 2.2 set velocity and timeOfBirth shader attributes
-    int velSize = 2; // velocity has x,y
-    GLuint vertexVel = glGetAttribLocation(shaderProgram->ID, "velocity");
-    glEnableVertexAttribArray(vertexVel);
-    glVertexAttribPointer(vertexVel, velSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*) (sizeOfFloat * posSize));
+    int velSize = 2;
+    GLuint vertexVelocity = glGetAttribLocation(shaderProgram->ID, "velocity");
+    glEnableVertexAttribArray(vertexVelocity);
+    glVertexAttribPointer(vertexVelocity, velSize, GL_FLOAT, GL_FALSE,
+            particleSize * sizeOfFloat, (void*) (posSize * sizeOfFloat));
 
-    int timeSize = 2; // time of birth is a single float
-    GLuint vertexBornTime = glGetAttribLocation(shaderProgram->ID, "timeOfBirth");
-    glEnableVertexAttribArray(vertexBornTime);
-    glVertexAttribPointer(vertexBornTime, timeSize, GL_FLOAT, GL_FALSE, particleSize * sizeOfFloat, (void*) (sizeOfFloat * (posSize + velSize)));
-
+    int timeBirthSize = 1;
+    GLuint timeBirthLocation = glGetAttribLocation(shaderProgram->ID, "timeOfBirth");
+    glEnableVertexAttribArray(timeBirthLocation);
+    glVertexAttribPointer(timeBirthLocation, timeBirthSize, GL_FLOAT, GL_FALSE,
+            particleSize * sizeOfFloat,  (void*) ( (posSize + velSize) * sizeOfFloat));
 }
 
 void createVertexBufferObject(){
@@ -168,14 +168,16 @@ void emitParticle(float x, float y, float velocityX, float velocityY, float time
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     float data[particleSize];
-    data[0] = x, data[1] = y;
-    data[2] = velocityX, data[3] = velocityY;
-    data[4] = timeOfBirth;
+            data[0] = x,
+            data[1] = y,
+            data[2] = velocityX,
+            data[3] = velocityY,
+            data[4] = timeOfBirth;
     // TODO 2.2 , add velocity and timeOfBirth to the particle data
 
     // upload only parts of the buffer
-    glBufferSubData(GL_ARRAY_BUFFER, particleId*particleSize*sizeOfFloat, particleSize*sizeOfFloat, (void *)data);
-    particleId = (particleId+1) % vertexBufferSize;
+    glBufferSubData(GL_ARRAY_BUFFER, particleId * particleSize * sizeOfFloat, particleSize * sizeOfFloat, data);
+    particleId = (particleId + 1) % vertexBufferSize;
 }
 
 
@@ -185,23 +187,23 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
         // get screen size and click coordinates
-        double xPos, yPos;
-        int xScreen, yScreen;
-        glfwGetCursorPos(window, &xPos, &yPos);
-        glfwGetWindowSize(window, &xScreen, &yScreen);
-        // convert from screen space to normalized display coordinates
-        float xNdc = (float) xPos/(float) xScreen * 2.0f -1.0f;
-        float yNdc = (float) yPos/(float) yScreen * 2.0f -1.0f;
-        yNdc = -yNdc;
+    double xPos, yPos;
+    int xScreen, yScreen;
+    glfwGetCursorPos(window, &xPos, &yPos);
+    glfwGetWindowSize(window, &xScreen, &yScreen);
+    // convert from screen space to normalized display coordinates
+    float xNdc = (float) xPos/(float) xScreen * 2.0f -1.0f;
+    float yNdc = (float) yPos/(float) yScreen * 2.0f -1.0f;
+    yNdc = -yNdc;
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
         // compute velocity based on two consecutive updates
         float velocityX = xNdc - lastX;
         float velocityY = yNdc - lastY;
         float max_rand = (float) (RAND_MAX);
         // create 5 to 10 particles per frame
         int i = (int) ((float) (rand()) / max_rand) * 5;
-        for(; i < 10; i++) {
+        for (; i < 10; i++) {
             // add some randomness to the movement parameters
             float offsetX = ((float) (rand()) / max_rand - .5f) * .1f;
             float offsetY = ((float) (rand()) / max_rand - .5f) * .1f;
@@ -210,9 +212,10 @@ void processInput(GLFWwindow *window)
             // create the particle
             emitParticle(xNdc + offsetX, yNdc + offsetY, velocityX + offsetVelX, velocityY + offsetVelY, currentTime);
         }
-        lastX = xNdc;
-        lastY = yNdc;
     }
+    lastX = xNdc;
+    lastY = yNdc;
+
 }
 
 

@@ -1,36 +1,31 @@
 #version 330 core
-// current particle age (input from the vertex shader)
-in float age;
-// final output color
+
+in vec2 gl_PointCoord;
+in float elapsedTimeFrag;
+
 out vec4 fragColor;
 
-// hard coded max age
-float maxAge = 10.0;
+const vec3 startCol = vec3(1.0, 1.0, 0.05);
+const vec3 midCol = vec3(1.0, 0.5, 0.01);
+const vec3 endCol = vec3(0.0, 0.0, 0.0);
+
+const float midAge = 5.0;
+const float maxAge = 10.0;
 
 void main()
 {
     // TODO 2.4 set the alpha value to 0.2 (alpha is the 4th value)
+    vec2 vecFromCenter = (gl_PointCoord - vec2(.5, .5)) * 2;
+    float distance = sqrt(dot(vecFromCenter, vecFromCenter));
+
     // after 2.4, TODO 2.5 and 2.6: improve the particles appearance
-    // put age in the range of [0,1]
-    float ageNorm = age / maxAge;
-    // opacity is linearly reduced the further away from the center of the point
-    float alpha = 1.0 - length(gl_PointCoord - .5) * 2.0;
-    // three colors used for interpolation
-    vec3 colorFrom = vec3(1.0, 1.0, 0.05);
-    vec3 colorMid = vec3(1.0, 0.5, 0.01);
-    vec3 colorTo = vec3(0.0, 0.0, 0.0);
-    // final color
-    vec3 color;
-    if (ageNorm < 0.5){
-        // interpolate in the first half of the particle lifetime
-        color = mix(colorFrom, colorMid, ageNorm * 2.0);
-    }else{
-        // interpolate in the second half of the particle lifetime
-        color = mix(colorMid, colorTo, ageNorm * 2.0 - 1.0);
+    vec3 color = mix(startCol, midCol, elapsedTimeFrag / midAge);
+    if (elapsedTimeFrag > midAge){
+        color = mix(midCol, endCol, (elapsedTimeFrag - midAge) / midAge);
     }
 
+    float alpha = mix(1.0 - distance, 0, elapsedTimeFrag / maxAge);
 
-    // final color, notice that the overall opacity is also controlled by the normalized particle age
-    fragColor = vec4(color, alpha * (1.0 - ageNorm));
+    fragColor = vec4(color, alpha);
 
 }

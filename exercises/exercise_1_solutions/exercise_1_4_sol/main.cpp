@@ -235,7 +235,7 @@ void setupShape(const unsigned int shaderProgram,unsigned int &VAO, unsigned int
     int colorAttributeLocation = glGetAttribLocation(shaderProgram, "aColor");
     std::cout << "should be 1: " << colorAttributeLocation << std::endl;
     glEnableVertexAttribArray(colorAttributeLocation);
-    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(colorAttributeLocation, colorSize, GL_FLOAT, GL_FALSE, colorSize * sizeof(float), 0);
 
     glBindVertexArray(0);
 }
