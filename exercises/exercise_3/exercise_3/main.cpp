@@ -42,6 +42,7 @@ const unsigned int SCR_HEIGHT = 600;
 // -----------
 SceneObject planeBody;
 SceneObject planeWing;
+SceneObject planePropeller;
 
 float currentTime;
 Shader* shaderProgram;
@@ -146,8 +147,37 @@ void drawPlane(){
     //  you will need to transform the pose of the pieces of the plane by manipulating glm matrices and uploading a
     //  uniform mat4 model matrix to the vertex shader
 
+    float propellerAngularVelocity = glm::radians(360.0f);
+
+    glm::mat4 model = glm::mat4(1.0);
+
+    glm::mat4 reflectX = glm::scale(-1 , 1, 1);
+    glm::mat4 scaleSmaller = glm::scale(0.5f, 0.5f, 0.5f);
+    glm::mat4 translateDown = glm::translate(0.0f, -0.5f, 0.0f);
+    glm::mat4 translateUp = glm::translate(0.0f, +0.5f, 0.0f);
+    glm::mat4 rotate90X = glm::rotateX(glm::radians(90.0f));
+    glm::mat4 rotateAroundZTime = glm::rotateZ(currentTime * propellerAngularVelocity);
+
+    glm::mat4 lowerWingMat = translateDown*scaleSmaller*model;
+    glm::mat4 propellerMat = translateUp*rotate90X*rotateAroundZTime*model;
+
+    unsigned int modelLoc = glGetUniformLocation(shaderProgram->ID, "model");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
     drawSceneObject(planeBody);
     drawSceneObject(planeWing);
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr((reflectX*model)));
+    drawSceneObject(planeWing);
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(lowerWingMat));
+    drawSceneObject(planeWing);
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(reflectX*lowerWingMat));
+    drawSceneObject(planeWing);
+
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(propellerMat));
+    drawSceneObject(planePropeller);
 }
 
 void drawSceneObject(SceneObject obj){
@@ -166,6 +196,11 @@ void setup(){
     // initialize plane wing mesh objects
     planeWing.VAO = createVertexArray(planeWingVertices, planeWingColors, planeWingIndices);
     planeWing.vertexCount = planeWingIndices.size();
+
+    //Francesco: initialize propeller
+    planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
+    planePropeller.vertexCount = planePropellerIndices.size();
+
 }
 
 
