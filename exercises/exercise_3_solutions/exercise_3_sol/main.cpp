@@ -234,7 +234,7 @@ void setup(){
 }
 
 
-unsigned int createVertexArray(std::vector<float> &positions, std::vector<float> &colors, std::vector<unsigned int> &indices){
+unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices){
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
     // bind vertex array object
@@ -258,7 +258,7 @@ unsigned int createVertexArray(std::vector<float> &positions, std::vector<float>
     return VAO;
 }
 
-unsigned int createArrayBuffer(std::vector<float> &array){
+unsigned int createArrayBuffer(const std::vector<float> &array){
     unsigned int VBO;
     glGenBuffers(1, &VBO);
 
@@ -268,7 +268,7 @@ unsigned int createArrayBuffer(std::vector<float> &array){
     return VBO;
 }
 
-unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
+unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array){
     unsigned int EBO;
     glGenBuffers(1, &EBO);
 
