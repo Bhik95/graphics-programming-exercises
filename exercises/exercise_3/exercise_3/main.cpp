@@ -27,6 +27,7 @@ unsigned int createVertexArray(std::vector<float> &positions, std::vector<float>
 void setup();
 void drawSceneObject(SceneObject obj);
 void drawPlane();
+void updatePlane();
 
 // glfw functions
 // --------------
@@ -45,7 +46,11 @@ SceneObject planeWing;
 SceneObject planePropeller;
 
 float currentTime;
+float deltaTime = 0.0f;
 Shader* shaderProgram;
+
+glm::vec3 planePosition = glm::vec3(0.0f, 0.0f, 0.0f);
+float planeRotation = 0.0f;
 
 int main()
 {
@@ -112,9 +117,16 @@ int main()
         // update current time
         auto frameStart = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> appTime = frameStart - begin;
+        float oldTime = currentTime;
         currentTime = appTime.count();
 
+        deltaTime = currentTime - oldTime;
+
+        //std::cout << "DeltaT: " << deltaTime << std::endl;
+
         processInput(window);
+
+        updatePlane();
 
         glClearColor(0.5f, 0.5f, 1.0f, 1.0f);
 
@@ -149,7 +161,10 @@ void drawPlane(){
 
     float propellerAngularVelocity = glm::radians(360.0f);
 
-    glm::mat4 model = glm::mat4(1.0);
+    glm::mat4 modelScale = glm::scale(0.1f, 0.1f, 0.1f);
+    glm::mat4 modelRotation = glm::rotate(planeRotation, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 modelTranslation = glm::translate(planePosition);
+    glm::mat4 modelTransform =  modelTranslation * modelRotation * modelScale;
 
     glm::mat4 reflectX = glm::scale(-1 , 1, 1);
     glm::mat4 scaleSmaller = glm::scale(0.5f, 0.5f, 0.5f);
@@ -158,22 +173,23 @@ void drawPlane(){
     glm::mat4 rotate90X = glm::rotateX(glm::radians(90.0f));
     glm::mat4 rotateAroundZTime = glm::rotateZ(currentTime * propellerAngularVelocity);
 
-    glm::mat4 lowerWingMat = translateDown*scaleSmaller*model;
-    glm::mat4 propellerMat = translateUp*rotate90X*rotateAroundZTime*model;
+    glm::mat4 bodyMat = modelTransform;
+    glm::mat4 lowerWingMat = modelTransform*translateDown*scaleSmaller;
+    glm::mat4 propellerMat = modelTransform*translateUp*rotate90X*rotateAroundZTime;
 
     unsigned int modelLoc = glGetUniformLocation(shaderProgram->ID, "model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(bodyMat));
 
     drawSceneObject(planeBody);
     drawSceneObject(planeWing);
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr((reflectX*model)));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr((bodyMat*reflectX)));
     drawSceneObject(planeWing);
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(lowerWingMat));
     drawSceneObject(planeWing);
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(reflectX*lowerWingMat));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(lowerWingMat*reflectX));
     drawSceneObject(planeWing);
 
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(propellerMat));
@@ -252,11 +268,21 @@ unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
+    float steeringSpeed = glm::radians(45.0f);
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
     // TODO 3.4 control the plane (turn left and right) using the A and D keys
     // you will need to read A and D key press inputs
     // if GLFW_KEY_A is GLFW_PRESS, plane turn left
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+        planeRotation += steeringSpeed * deltaTime;
+        std::cout << "PlaneRotation: " << planeRotation << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+        planeRotation -= steeringSpeed * deltaTime;
+        std::cout << "PlaneRotation: " << planeRotation << std::endl;
+    }
     // if GLFW_KEY_D is GLFW_PRESS, plane turn right
 
 }
@@ -268,4 +294,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+}
+
+void updatePlane(){
+    float forwardSpeed = 0.01f;
+
+    planePosition += forwardSpeed * glm::vec3(-glm::sin(planeRotation), glm::cos(planeRotation), 0.0f);
+    planePosition = glm::mod(planePosition + glm::vec3(1.0f, 1.0f, 1.0f), 2.0f) - glm::vec3(1.0f, 1.0f, 1.0f);
 }
