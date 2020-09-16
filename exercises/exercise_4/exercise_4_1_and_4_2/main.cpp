@@ -54,6 +54,7 @@ const unsigned int SCR_HEIGHT = 600;
 SceneObject planeBody;
 SceneObject planeWing;
 SceneObject planePropeller;
+SceneObject arrow;
 Shader* shaderProgram;
 
 // global variables used for control
@@ -167,8 +168,25 @@ int main()
 }
 
 void drawArrow(){
-    // TODO - 4.2 implement the draw arrow
+    if(!pressing)
+        return;
 
+    // TODO - 4.2 implement the draw arrow
+    glm::mat4 rotation = glm::rotateZ(planeRotation);
+    glm::mat4 translation = glm::translate(planePosition.x, planePosition.y, 0.0f);
+
+    glm::vec2 deltaClick = clickEnd - planePosition;
+    float length = glm::length(deltaClick);
+    // scale matrix to make the plane 10 times smaller
+    glm::mat4 scale = glm::scale(0.1f, length, 0.1f);
+
+    // final plane transformation, matrices are applied in the right to left order in the convention we use in the class
+    // 10 times smaller -> leaning toward the turn direction -> plane rotation -> plane position
+    glm::mat4 model = translation * rotation * scale;
+
+    // draw plane body and right wing
+    shaderProgram->setMat4("model", model);
+    drawSceneObject(arrow);
 }
 
 float smoothstep(float x){
@@ -268,6 +286,9 @@ void setup(){
     planePropeller.vertexCount = planePropellerIndices.size();
 
     // TODO 4.2 - load the arrow mesh
+    arrow.VAO = createVertexArray(arrowVertices, arrowColors, arrowIndices);
+    arrow.vertexCount = arrowIndices.size();
+
 }
 
 
