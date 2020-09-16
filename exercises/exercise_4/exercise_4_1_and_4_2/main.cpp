@@ -62,6 +62,13 @@ float currentTime;
 glm::vec2 clickStart(0.0f), clickEnd(0.0f);
 
 // TODO 4.1 and 4.2 - global variables you might need
+glm::vec2 planePosition(0.0f);
+float planeRotation = 0.0f;
+glm::vec2 startingPosition(0.0f);
+glm::vec2 targetPosition(0.0f);
+bool hasTarget = false;
+float launchTime = 0.0f;
+bool pressing = false;
 
 int main()
 {
@@ -164,11 +171,35 @@ void drawArrow(){
 
 }
 
+float smoothstep(float x){
+    if( x <= 0.0f)
+        return 0.0f;
+    else if ( x >= 1.0f )
+        return 1.0f;
+    return x*x*(3-2*x);
+}
+
 void drawPlane(){
     // TODO - 4.1 translate and rotate the plane
 
-    glm::mat4 rotation(1.0f);
-    glm::mat4 translation(1.0f);
+    float tweenDuration = 2.0f;
+
+    if(pressing){
+        glm::vec2 deltaClick = clickEnd - planePosition;
+        planeRotation = atan2(-deltaClick.x, deltaClick.y); // The order of the parameters is intentionally that way
+    }
+
+    float t = (currentTime - launchTime) / tweenDuration;
+    //std::cout << "t: " << t << " " << (hasTarget ? "Y" : "N") << std::endl;
+    if(hasTarget){
+        t = smoothstep(glm::clamp(t, 0.0f, 1.0f));
+        planePosition = (1-t)*startingPosition + t*targetPosition;
+        if(t >= 1)
+            hasTarget = false;
+    }
+
+    glm::mat4 rotation = glm::rotateZ(planeRotation);
+    glm::mat4 translation = glm::translate(planePosition.x, planePosition.y, 0.0f);
 
 
     // scale matrix to make the plane 10 times smaller
@@ -317,13 +348,22 @@ void button_input_callback(GLFWwindow* window, int button, int action, int mods)
         // reset the end position
         cursorInNdc(screenX, screenY, screenW, screenH, clickEnd.x, clickEnd.y);
 
+        pressing = true;
+        planePosition = clickEnd;
+        startingPosition = planePosition;
+        hasTarget = false;
     }
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
         // set the end position
         cursorInNdc(screenX, screenY, screenW, screenH, clickEnd.x, clickEnd.y);
         // reset the start position
         cursorInNdc(screenX, screenY, screenW, screenH, clickStart.x, clickStart.y);
+        hasTarget = true;
+        targetPosition = clickEnd;
+        launchTime = currentTime;
+        pressing = false;
     }
+
 }
 
 
