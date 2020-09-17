@@ -12,6 +12,7 @@
 #include "glmutils.h"
 
 #include "primitives.h"
+#include "plane_model.h"
 
 // structure to hold render info
 // -----------------------------
@@ -43,6 +44,9 @@ const unsigned int SCR_HEIGHT = 600;
 // global variables used for rendering
 // -----------------------------------
 SceneObject cube;
+SceneObject planeBody;
+SceneObject planeWing;
+SceneObject planePropeller;
 Shader* shaderProgram;
 
 // global variables used for control
@@ -137,6 +141,28 @@ int main()
     return 0;
 }
 
+glm::vec3 shoemakeM(glm::vec2 input, float R){
+    float XXplusYY = glm::dot(input, input);
+    float R2 = R*R;
+    if(XXplusYY <= R2){
+        return glm::vec3(input.x, input.y, glm::sqrt(R2 - XXplusYY));
+    }
+    else{
+        return (R / (glm::sqrt(XXplusYY))) * glm::vec3(input.x, input.y, 0);
+    }
+}
+
+glm::vec3 andersonM(glm::vec2 input, float R){
+    float XXplusYY = glm::dot(input, input); //X^2+Y^2
+    float R2 = R*R; // R^2
+    if(2 * XXplusYY <= R2){
+        return glm::vec3(input.x, input.y, glm::sqrt(R2 - XXplusYY));
+    }
+    else{
+        return glm::vec3(input.x, input.y, R2 / (2.0f * glm::sqrt(XXplusYY)));
+    }
+}
+
 glm::mat4 trackballRotation(){
     glm::vec2 mouseVec =clickStart-clickEnd;
     if (glm::length(mouseVec) < 1.e-5f)
@@ -153,16 +179,25 @@ glm::mat4 trackballRotation(){
     // TODO - prepare the values you will use for the trackball
 
     // TODO - Shoemake trackball
+    /*glm::vec3 clickStartProj = shoemakeM(clickStart, r);
+    glm::vec3 clickEndProj = shoemakeM(clickEnd, r);*/
+
 
     // TODO - Anderson trackball
+    glm::vec3 clickStartProj = andersonM(clickStart, r);
+    glm::vec3 clickEndProj = andersonM(clickEnd, r);
 
+    dotProd = glm::dot(clickStartProj, clickEndProj);
+    crossProd = glm::cross(clickStartProj, clickEndProj);
+    float crossProdLength = glm::length(crossProd);
+    u = glm::normalize(crossProd);
+    angle = glm::atan(crossProdLength, dotProd);
     // correction to the rotation angle
-    angle += dotProd < 0.f ? glm::pi<float>() : 0.f;
+    //angle += dotProd < 0.f ? glm::pi<float>() : 0.f; //Why does it have to be corrected, it works correctly without it
     glm::mat4 rotation = glm::rotate(abs(angle), u);
 
     return rotation;
 }
-
 
 void drawObject(){
 
@@ -176,12 +211,36 @@ void drawObject(){
     // TODO 4.5 - create a project using the glm::perspectiveFov function,
     //  and use it to view the object (i.e. multiply with model)
 
-
+    // TODO 4.4 - replace the cube with the plane from exercise 4.1/4.2
     // draw object
     shaderProgram->setMat4("model", model);
-    drawSceneObject(cube);
+    drawSceneObject(planeBody);
+    drawSceneObject(planeWing);
 
-    // TODO 4.4 - replace the cube with the plane from exercise 4.1/4.2
+    glm::mat4 propeller = model * glm::translate(.0f, .5f, .0f) *
+                          glm::rotate(currentTime * 10.0f, glm::vec3(0.0,1.0,0.0)) *
+                          glm::rotate(glm::half_pi<float>(), glm::vec3(1.0,0.0,0.0)) *
+                          glm::scale(.5f, .5f, .5f);
+    shaderProgram->setMat4("model", propeller);
+    drawSceneObject(planePropeller);
+
+    // right wing back,
+    // half size -> move to the back
+    glm::mat4 wingRightBack = model * glm::translate(0.0f, -0.5f, 0.0f) * glm::scale(.5f,.5f,.5f);
+    shaderProgram->setMat4("model", wingRightBack);
+    drawSceneObject(planeWing);
+
+    // left wing,
+    // mirror in x
+    glm::mat4 wingLeft = model * glm::scale(-1.0f, 1.0f, 1.0f);
+    shaderProgram->setMat4("model", wingLeft);
+    drawSceneObject(planeWing);
+
+    // left wing back,
+    // half size + mirror in x -> move to the back
+    glm::mat4 wingLeftBack =  model *  glm::translate(0.0f, -0.5f, 0.0f) * glm::scale(-.5f,.5f,.5f);
+    shaderProgram->setMat4("model", wingLeftBack);
+    drawSceneObject(planeWing);
 
 }
 
@@ -198,6 +257,18 @@ void setup(){
 
     cube.VAO = createVertexArray(cubeVertices, cubeColors, cubeIndices);
     cube.vertexCount = cubeIndices.size();
+
+    // initialize plane body mesh objects
+    planeBody.VAO = createVertexArray(planeBodyVertices, planeBodyColors, planeBodyIndices);
+    planeBody.vertexCount = planeBodyIndices.size();
+
+    // initialize plane wing mesh objects
+    planeWing.VAO = createVertexArray(planeWingVertices, planeWingColors, planeWingIndices);
+    planeWing.vertexCount = planeWingIndices.size();
+
+    // initialize plane wing mesh objects
+    planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
+    planePropeller.vertexCount = planePropellerIndices.size();
 }
 
 
