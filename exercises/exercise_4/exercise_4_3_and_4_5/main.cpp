@@ -202,7 +202,7 @@ glm::mat4 trackballRotation(){
 void drawObject(){
 
     // scale matrix to make the plane 10 times smaller
-    glm::mat4 scale = glm::scale(.5f, .5f, .5f);
+    glm::mat4 scale = glm::scale(.1f, .1f, .1f);
 
     // final object transformation
     // scale -> rotations
@@ -210,6 +210,7 @@ void drawObject(){
 
     // TODO 4.5 - create a project using the glm::perspectiveFov function,
     //  and use it to view the object (i.e. multiply with model)
+    model = glm::perspectiveFov(glm::radians(70.0f), (float)SCR_WIDTH, (float)SCR_HEIGHT, 0.01f, 10.0f) * model;
 
     // TODO 4.4 - replace the cube with the plane from exercise 4.1/4.2
     // draw object
