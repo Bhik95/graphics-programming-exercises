@@ -21,9 +21,9 @@ struct SceneObject{
 
 // function declarations
 // ---------------------
-unsigned int createArrayBuffer(const std::vector<float> &array);
-unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array);
-unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices);
+unsigned int createArrayBuffer(std::vector<float> &array);
+unsigned int createElementArrayBuffer(std::vector<unsigned int> &array);
+unsigned int createVertexArray(std::vector<float> &positions, std::vector<float> &colors, std::vector<unsigned int> &indices);
 void setup();
 void drawSceneObject(SceneObject obj);
 void drawPlane();
@@ -47,12 +47,11 @@ SceneObject planePropeller;
 float currentTime;
 Shader* shaderProgram;
 
-// global variables used to set the plane and communicate
-// its state between the input and draw functions
+float planeHeading = 0.0f;
+float tiltAngle = 0.0f;
 float planeSpeed = 0.005f;
 glm::vec2 planePosition = glm::vec2(0.0,0.0);
-float planeRotation = 0.0f;
-float tilt = 0;
+
 
 int main()
 {
@@ -89,7 +88,7 @@ int main()
 
     // build and compile our shader program
     // ------------------------------------
-    shaderProgram = new Shader("shader.vert", "shader.frag");
+    shaderProgram = new Shader("shaders/shader.vert", "shaders/shader.frag");
 
     // the model was originally baked with lights for a left handed coordinate system, we are "fixing" the z-coordinate
     // so we can work with a right handed coordinate system
@@ -155,15 +154,15 @@ void drawPlane(){
     //  uniform mat4 model matrix to the vertex shader
 
     // rotation matrix based on current planeRotation
-    glm::mat4 rotation = glm::rotateZ(planeRotation);
+    glm::mat4 rotation = glm::rotateZ(planeHeading);
 
     // add rotated translation step in the xy plane to planePosition
     planePosition.x += (rotation * glm::vec4(0, planeSpeed, 0, 1)).x;
     planePosition.y += (rotation * glm::vec4(0, planeSpeed, 0, 1)).y;
 
     // wrap position
-    planePosition.x *= (abs(planePosition.x) > 1.f) ? -1.f : 1.0;
-    planePosition.y *= (abs(planePosition.y) > 1.f) ? -1.f : 1.0;
+    planePosition.x = glm::mod(planePosition.x + 1.0f, 2.0f) -1.0f;
+    planePosition.y = glm::mod(planePosition.y + 1.0f, 2.0f) -1.0f;
 
     // position matrix based on current planePosition
     glm::mat4 translation = glm::translate(planePosition.x, planePosition.y, 0);
@@ -171,7 +170,7 @@ void drawPlane(){
     // scale matrix to make the plane 10 times smaller
     glm::mat4 scale = glm::scale(.1f, .1f, .1f);
 
-    auto planeLeaning = glm::rotateY(glm::radians<float>(tilt));
+    auto planeLeaning = glm::rotateY(glm::radians<float>(tiltAngle));
 
     // final plane transformation, matrices are applied in the right to left order in the convention we use in the class
     // 10 times smaller -> leaning toward the turn direction -> rotation -> position
@@ -231,10 +230,11 @@ void setup(){
     // initialize plane propeller mesh object
     planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
     planePropeller.vertexCount = planePropellerIndices.size();
+
 }
 
 
-unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices){
+unsigned int createVertexArray(std::vector<float> &positions, std::vector<float> &colors, std::vector<unsigned int> &indices){
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
     // bind vertex array object
@@ -258,7 +258,7 @@ unsigned int createVertexArray(const std::vector<float> &positions, const std::v
     return VAO;
 }
 
-unsigned int createArrayBuffer(const std::vector<float> &array){
+unsigned int createArrayBuffer(std::vector<float> &array){
     unsigned int VBO;
     glGenBuffers(1, &VBO);
 
@@ -268,7 +268,7 @@ unsigned int createArrayBuffer(const std::vector<float> &array){
     return VBO;
 }
 
-unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array){
+unsigned int createElementArrayBuffer(std::vector<unsigned int> &array){
     unsigned int EBO;
     glGenBuffers(1, &EBO);
 
@@ -288,14 +288,14 @@ void processInput(GLFWwindow *window)
     // you will need to read A and D key press inputs
     // if GLFW_KEY_A is GLFW_PRESS, plane turn left
     // if GLFW_KEY_D is GLFW_PRESS, plane turn right
-    tilt =  0;
+    tiltAngle =  0;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        planeRotation += 0.02f;
-        tilt = -45;
+        planeHeading += 0.02f;
+        tiltAngle = -45;
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        planeRotation -= 0.02f;
-        tilt = +45;
+        planeHeading -= 0.02f;
+        tiltAngle = +45;
     }
 }
 

@@ -47,7 +47,7 @@ int main()
 
     // build and compile our shader program
     // ------------------------------------
-    Shader ourShader("shader.vert", "shader.frag"); // you can name your shader files however you like
+    Shader ourShader("shaders/shader.vert", "shaders/shader.frag"); // you can name your shader files however you like
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------

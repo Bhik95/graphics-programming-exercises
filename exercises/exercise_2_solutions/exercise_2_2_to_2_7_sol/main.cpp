@@ -64,7 +64,7 @@ int main()
 
     // build and compile our shader program
     // ------------------------------------
-    shaderProgram = new Shader("shader.vert", "shader.frag");
+    shaderProgram = new Shader("shaders/shader.vert", "shaders/shader.frag");
 
     // NEW!
     // enable built in variable gl_PointSize in the vertex shader
