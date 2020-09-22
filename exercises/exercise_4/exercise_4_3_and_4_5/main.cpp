@@ -210,7 +210,13 @@ void drawObject(){
 
     // TODO 4.5 - create a project using the glm::perspectiveFov function,
     //  and use it to view the object (i.e. multiply with model)
-    model = glm::perspectiveFov(glm::radians(70.0f), (float)SCR_WIDTH, (float)SCR_HEIGHT, 0.01f, 10.0f) * model;
+    glm::mat4 perspectiveMatrix = glm::perspectiveFov(glm::radians(70.0f), (float)SCR_WIDTH, (float)SCR_HEIGHT, 0.01f, 10.0f);
+    glm::vec3 cameraPos(0,0,1); // or vrp
+    glm::vec3 forward(0,0,-1); // or -vpn
+    glm::vec3 vup(0,1,0);
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + forward, vup);
+
+    model = perspectiveMatrix * view * model; //Perspective
 
     // TODO 4.4 - replace the cube with the plane from exercise 4.1/4.2
     // draw object
