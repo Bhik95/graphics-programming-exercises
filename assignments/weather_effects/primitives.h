@@ -40,10 +40,10 @@ std::vector<float> floorVertices {-20.0f, 0.0f, 20.0f,
                                   -20.0f, 0.0f, -20.0f};
 std::vector<unsigned int> floorIndices {0, 1, 2,
                                         0, 2, 3};
-std::vector<float> floorColors {.8f, .8f, .8f, 1.f,
-                                .8f, .8f, .8f, 1.f,
-                                .9f, .9f, .9f, 1.f,
-                                .8f, .8f, .8f, 1.f};
+std::vector<float> floorColors {0.0f, 1.0f, 0.266666667f, 1.f,
+                                0.0f, 1.0f, 0.266666667f, 1.f,
+                                0.0f, 1.0f, 0.266666667f, 1.f,
+                                0.0f, 1.0f, 0.266666667f, 1.f};
 
 std::vector<float> houseVertices = {
         //Front wall

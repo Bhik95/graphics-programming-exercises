@@ -51,6 +51,7 @@ SceneObject floorObj;
 SceneObject planeBody;
 SceneObject planeWing;
 SceneObject planePropeller;
+SceneObject particles;
 Shader* shaderProgram;
 
 // global variables used for control
@@ -76,7 +77,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 4.6", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Weather Effects", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -242,6 +243,10 @@ void setup(){
 
     planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
     planePropeller.vertexCount = planePropellerIndices.size();
+
+    // load particles
+    
+
 }
 
 
