@@ -55,8 +55,8 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/exercises)
     add_subdirectory(${CMAKE_SOURCE_DIR}/exercises)
 ENDIF()
 
-IF(EXISTS ${CMAKE_SOURCE_DIR}/exercise_solutions)
-    add_subdirectory(${CMAKE_SOURCE_DIR}/exercise_solutions)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/student_projects)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/student_projects)
 ENDIF()
 
 IF(EXISTS ${CMAKE_SOURCE_DIR}/assignments)
