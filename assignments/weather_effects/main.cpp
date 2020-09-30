@@ -26,9 +26,11 @@ struct SceneObject{
 // ---------------------
 unsigned int createArrayBuffer(const std::vector<float> &array);
 unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array);
-unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices);
+unsigned int createVertexArraySolid(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices);
+unsigned int createVertexArrayParticles(unsigned int particlesNumber);
 void setup();
 void drawObjects();
+void drawParticles();
 
 // glfw and input functions
 // ------------------------
@@ -52,7 +54,9 @@ SceneObject planeBody;
 SceneObject planeWing;
 SceneObject planePropeller;
 SceneObject particles;
-Shader* shaderProgram;
+unsigned int particlesVBO;
+Shader* shaderProgramSolid;
+Shader* shaderProgramParticle;
 
 // global variables used for control
 // ---------------------------------
@@ -61,6 +65,8 @@ glm::vec3 camForward(.0f, .0f, -1.0f);
 glm::vec3 camPosition(.0f, 1.6f, 0.0f);
 float linearSpeed = 0.15f, rotationGain = 30.0f;
 
+const unsigned int vertexBufferSize = 65536;
+const unsigned int particleSize = 5;
 
 int main()
 {
@@ -77,7 +83,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Weather Effects", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Exercise 4.6", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -131,8 +137,11 @@ int main()
         // notice that we also need to clear the depth buffer (aka z-buffer) every new frame
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shaderProgram->use();
+        shaderProgramSolid->use();
         drawObjects();
+
+        shaderProgramParticle->use();
+        drawParticles();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -144,7 +153,8 @@ int main()
         }
     }
 
-    delete shaderProgram;
+    delete shaderProgramSolid;
+    delete shaderProgramParticle;
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -168,7 +178,7 @@ void drawObjects(){
     glm::mat4 viewProjection = projection * view;
 
     // draw floor (the floor was built so that it does not need to be transformed)
-    shaderProgram->setMat4("model", viewProjection);
+    shaderProgramSolid->setMat4("model", viewProjection);
     floorObj.drawSceneObject();
 
     // draw 2 cubes and 2 planes in different location and with different orientations
@@ -180,10 +190,17 @@ void drawObjects(){
 
 }
 
+void drawParticles(){
+    shaderProgramParticle->setFloat("currentTime", currentTime);
+
+    glBindVertexArray(particles.VAO);
+    glDrawArrays(GL_POINTS, 0, particles.vertexCount);
+}
+
 
 void drawCube(glm::mat4 model){
     // draw object
-    shaderProgram->setMat4("model", model);
+    shaderProgramSolid->setMat4("model", model);
     cube.drawSceneObject();
 }
 
@@ -191,7 +208,7 @@ void drawCube(glm::mat4 model){
 void drawPlane(glm::mat4 model){
 
     // draw plane body and right wing
-    shaderProgram->setMat4("model", model);
+    shaderProgramSolid->setMat4("model", model);
     planeBody.drawSceneObject();
     planeWing.drawSceneObject();
 
@@ -201,22 +218,22 @@ void drawPlane(glm::mat4 model){
                           glm::rotate(glm::half_pi<float>(), glm::vec3(1.0,0.0,0.0)) *
                           glm::scale(.5f, .5f, .5f);
 
-    shaderProgram->setMat4("model", propeller);
+    shaderProgramSolid->setMat4("model", propeller);
     planePropeller.drawSceneObject();
 
     // right wing back,
     glm::mat4 wingRightBack = model * glm::translate(0.0f, -0.5f, 0.0f) * glm::scale(.5f,.5f,.5f);
-    shaderProgram->setMat4("model", wingRightBack);
+    shaderProgramSolid->setMat4("model", wingRightBack);
     planeWing.drawSceneObject();
 
     // left wing,
     glm::mat4 wingLeft = model * glm::scale(-1.0f, 1.0f, 1.0f);
-    shaderProgram->setMat4("model", wingLeft);
+    shaderProgramSolid->setMat4("model", wingLeft);
     planeWing.drawSceneObject();
 
     // left wing back,
     glm::mat4 wingLeftBack =  model *  glm::translate(0.0f, -0.5f, 0.0f) * glm::scale(-.5f,.5f,.5f);
-    shaderProgram->setMat4("model", wingLeftBack);
+    shaderProgramSolid->setMat4("model", wingLeftBack);
     planeWing.drawSceneObject();
 }
 
@@ -224,33 +241,34 @@ void drawPlane(glm::mat4 model){
 
 void setup(){
     // initialize shaders
-    shaderProgram = new Shader("shaders/shader.vert", "shaders/shader.frag");
+    shaderProgramSolid = new Shader("shaders/solid.vert", "shaders/solid.frag");
+    shaderProgramParticle = new Shader("shaders/particle.vert", "shaders/particle.frag");
 
     // load floor mesh into openGL
-    floorObj.VAO = createVertexArray(floorVertices, floorColors, floorIndices);
+    floorObj.VAO = createVertexArraySolid(floorVertices, floorColors, floorIndices);
     floorObj.vertexCount = floorIndices.size();
 
     // load cube mesh into openGL
-    cube.VAO = createVertexArray(cubeVertices, cubeColors, cubeIndices);
+    cube.VAO = createVertexArraySolid(cubeVertices, cubeColors, cubeIndices);
     cube.vertexCount = cubeIndices.size();
 
     // load plane meshes into openGL
-    planeBody.VAO = createVertexArray(planeBodyVertices, planeBodyColors, planeBodyIndices);
+    planeBody.VAO = createVertexArraySolid(planeBodyVertices, planeBodyColors, planeBodyIndices);
     planeBody.vertexCount = planeBodyIndices.size();
 
-    planeWing.VAO = createVertexArray(planeWingVertices, planeWingColors, planeWingIndices);
+    planeWing.VAO = createVertexArraySolid(planeWingVertices, planeWingColors, planeWingIndices);
     planeWing.vertexCount = planeWingIndices.size();
 
-    planePropeller.VAO = createVertexArray(planePropellerVertices, planePropellerColors, planePropellerIndices);
+    planePropeller.VAO = createVertexArraySolid(planePropellerVertices, planePropellerColors, planePropellerIndices);
     planePropeller.vertexCount = planePropellerIndices.size();
 
-    // load particles
-    
+    particles.VAO = createVertexArrayParticles(vertexBufferSize);
 
+    particles.vertexCount = vertexBufferSize;
 }
 
 
-unsigned int createVertexArray(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices){
+unsigned int createVertexArraySolid(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices){
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
     // bind vertex array object
@@ -258,13 +276,13 @@ unsigned int createVertexArray(const std::vector<float> &positions, const std::v
 
     // set vertex shader attribute "pos"
     createArrayBuffer(positions); // creates and bind  the VBO
-    int posAttributeLocation = glGetAttribLocation(shaderProgram->ID, "pos");
+    int posAttributeLocation = glGetAttribLocation(shaderProgramSolid->ID, "pos");
     glEnableVertexAttribArray(posAttributeLocation);
     glVertexAttribPointer(posAttributeLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     // set vertex shader attribute "color"
     createArrayBuffer(colors); // creates and bind the VBO
-    int colorAttributeLocation = glGetAttribLocation(shaderProgram->ID, "color");
+    int colorAttributeLocation = glGetAttribLocation(shaderProgramSolid->ID, "color");
     glEnableVertexAttribArray(colorAttributeLocation);
     glVertexAttribPointer(colorAttributeLocation, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
@@ -274,6 +292,43 @@ unsigned int createVertexArray(const std::vector<float> &positions, const std::v
     return VAO;
 }
 
+unsigned int createVertexArrayParticles(unsigned int particlesNumber){
+    unsigned int VAO;
+    glGenVertexArrays(1, &VAO);
+
+    glGenBuffers(1, &particlesVBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, particlesVBO);
+
+    // initialize particle buffer, set all values to 0
+    std::vector<float> data(vertexBufferSize * particleSize);
+    for(unsigned int i = 0; i < data.size(); i++)
+        data[i] = 0.0f;
+
+    // allocate at openGL controlled memory
+    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize * particleSize * sizeof(float), &data[0], GL_DYNAMIC_DRAW);
+
+    int posSize = 2; // each position has x,y
+    GLuint vertexLocation = glGetAttribLocation(shaderProgramParticle->ID, "pos");
+    glEnableVertexAttribArray(vertexLocation);
+    glVertexAttribPointer(vertexLocation, posSize, GL_FLOAT, GL_FALSE, particleSize * sizeof(float), 0);
+
+    // TODO 2.2 set velocity and timeOfBirth shader attributes
+    int velSize = 2;
+    GLuint vertexVelocity = glGetAttribLocation(shaderProgramParticle->ID, "velocity");
+    glEnableVertexAttribArray(vertexVelocity);
+    glVertexAttribPointer(vertexVelocity, velSize, GL_FLOAT, GL_FALSE,
+                          particleSize * sizeof(float), (void*) (posSize * sizeof(float)));
+
+    int timeBirthSize = 1;
+    GLuint timeBirthLocation = glGetAttribLocation(shaderProgramParticle->ID, "timeOfBirth");
+    glEnableVertexAttribArray(timeBirthLocation);
+    glVertexAttribPointer(timeBirthLocation, timeBirthSize, GL_FLOAT, GL_FALSE,
+                          particleSize * sizeof(float),  (void*) ( (posSize + velSize) * sizeof(float)));
+
+    return VAO;
+}
 
 unsigned int createArrayBuffer(const std::vector<float> &array){
     unsigned int VBO;
