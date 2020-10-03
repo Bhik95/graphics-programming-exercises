@@ -7,6 +7,8 @@
 #include <vector>
 #include <chrono>
 
+#define N_SIMULATIONS 10
+
 void bindAttributes();
 void createVertexBufferObject();
 void emitParticle(float x, float y, float velocityX, float velocityY, float currentTime);
@@ -22,11 +24,14 @@ const unsigned int SCR_HEIGHT = 600;
 float lastX, lastY;                             // used to compute delta movement of the mouse
 float currentTime;
 unsigned int VAO, VBO;                          // vertex array and buffer objects
-const unsigned int vertexBufferSize = 65536;    // # of particles
+const unsigned int particleVertexBufferSize = 65536;    // # of particles
 const unsigned int particleSize = 5;            // particle attributes, TODO 2.2 update the number of attributes in a particle
 const unsigned int sizeOfFloat = 4;             // bytes in a float
 unsigned int particleId = 0;                    // keep track of last particle to be updated
 Shader *shaderProgram;                          // our shader program
+
+float gravityOffsets[N_SIMULATIONS];
+float windOffset[N_SIMULATIONS];
 
 int main()
 {
@@ -102,7 +107,7 @@ int main()
 
         // render particles
         glBindVertexArray(VAO);
-        glDrawArrays(GL_POINTS, 0, vertexBufferSize);
+        glDrawArrays(GL_POINTS, 0, particleVertexBufferSize);
 
         // show the frame buffer
         glfwSwapBuffers(window);
@@ -155,12 +160,12 @@ void createVertexBufferObject(){
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
     // initialize particle buffer, set all values to 0
-    std::vector<float> data(vertexBufferSize * particleSize);
+    std::vector<float> data(particleVertexBufferSize * particleSize);
     for(unsigned int i = 0; i < data.size(); i++)
         data[i] = 0.0f;
 
     // allocate at openGL controlled memory
-    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize * particleSize * sizeOfFloat, &data[0], GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, particleVertexBufferSize * particleSize * sizeOfFloat, &data[0], GL_DYNAMIC_DRAW);
     bindAttributes();
 }
 
@@ -177,7 +182,7 @@ void emitParticle(float x, float y, float velocityX, float velocityY, float time
 
     // upload only parts of the buffer
     glBufferSubData(GL_ARRAY_BUFFER, particleId * particleSize * sizeOfFloat, particleSize * sizeOfFloat, data);
-    particleId = (particleId + 1) % vertexBufferSize;
+    particleId = (particleId + 1) % particleVertexBufferSize;
 }
 
 

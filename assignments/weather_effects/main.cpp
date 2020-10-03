@@ -65,8 +65,8 @@ glm::vec3 camForward(.0f, .0f, -1.0f);
 glm::vec3 camPosition(.0f, 1.6f, 0.0f);
 float linearSpeed = 0.15f, rotationGain = 30.0f;
 
-const unsigned int vertexBufferSize = 65536;
-const unsigned int particleSize = 5;
+const unsigned int particleVertexBufferSize = 65536;
+const unsigned int particleSize = 3;
 
 int main()
 {
@@ -191,7 +191,8 @@ void drawObjects(){
 }
 
 void drawParticles(){
-    shaderProgramParticle->setFloat("currentTime", currentTime);
+    //TODO: change offset with calculated one
+    shaderProgramParticle->setVec3("offset", glm::vec3(0.0f, 0.0f, 0.0f));
 
     glBindVertexArray(particles.VAO);
     glDrawArrays(GL_POINTS, 0, particles.vertexCount);
@@ -262,9 +263,8 @@ void setup(){
     planePropeller.VAO = createVertexArraySolid(planePropellerVertices, planePropellerColors, planePropellerIndices);
     planePropeller.vertexCount = planePropellerIndices.size();
 
-    particles.VAO = createVertexArrayParticles(vertexBufferSize);
-
-    particles.vertexCount = vertexBufferSize;
+    particles.VAO = createVertexArrayParticles(particleVertexBufferSize);
+    particles.vertexCount = particleVertexBufferSize;
 }
 
 
@@ -302,30 +302,22 @@ unsigned int createVertexArrayParticles(unsigned int particlesNumber){
     glBindBuffer(GL_ARRAY_BUFFER, particlesVBO);
 
     // initialize particle buffer, set all values to 0
-    std::vector<float> data(vertexBufferSize * particleSize);
-    for(unsigned int i = 0; i < data.size(); i++)
-        data[i] = 0.0f;
+    std::vector<float> data(particleVertexBufferSize * particleSize);
+
+    for(unsigned int i = 0; i < data.size(); i++){
+        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        data[i] = r*2.0f - 1.0f;
+    }
+
 
     // allocate at openGL controlled memory
-    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize * particleSize * sizeof(float), &data[0], GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, particleVertexBufferSize * particleSize * sizeof(float), &data[0], GL_DYNAMIC_DRAW);
 
-    int posSize = 2; // each position has x,y
+    int posSize = 3; // each position has x,y and z
     GLuint vertexLocation = glGetAttribLocation(shaderProgramParticle->ID, "pos");
     glEnableVertexAttribArray(vertexLocation);
     glVertexAttribPointer(vertexLocation, posSize, GL_FLOAT, GL_FALSE, particleSize * sizeof(float), 0);
 
-    // TODO 2.2 set velocity and timeOfBirth shader attributes
-    int velSize = 2;
-    GLuint vertexVelocity = glGetAttribLocation(shaderProgramParticle->ID, "velocity");
-    glEnableVertexAttribArray(vertexVelocity);
-    glVertexAttribPointer(vertexVelocity, velSize, GL_FLOAT, GL_FALSE,
-                          particleSize * sizeof(float), (void*) (posSize * sizeof(float)));
-
-    int timeBirthSize = 1;
-    GLuint timeBirthLocation = glGetAttribLocation(shaderProgramParticle->ID, "timeOfBirth");
-    glEnableVertexAttribArray(timeBirthLocation);
-    glVertexAttribPointer(timeBirthLocation, timeBirthSize, GL_FLOAT, GL_FALSE,
-                          particleSize * sizeof(float),  (void*) ( (posSize + velSize) * sizeof(float)));
 
     return VAO;
 }
