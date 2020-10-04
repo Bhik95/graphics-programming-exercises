@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <chrono>
+#include <math.h>
 
 #include "shader.h"
 #include "glmutils.h"
@@ -27,7 +28,7 @@ struct SceneObject{
 unsigned int createArrayBuffer(const std::vector<float> &array);
 unsigned int createElementArrayBuffer(const std::vector<unsigned int> &array);
 unsigned int createVertexArraySolid(const std::vector<float> &positions, const std::vector<float> &colors, const std::vector<unsigned int> &indices);
-unsigned int createVertexArrayParticles(unsigned int particlesNumber);
+unsigned int createVertexArrayParticles(unsigned int particlesNumber, int i);
 void setup();
 void drawObjects();
 void drawParticles();
@@ -41,6 +42,9 @@ void cursor_input_callback(GLFWwindow* window, double posX, double posY);
 void drawCube(glm::mat4 model);
 void drawPlane(glm::mat4 model);
 
+const unsigned int BOX_SIZE = 30;
+const unsigned int ITERATIONS = 10;
+
 // screen settings
 // ---------------
 const unsigned int SCR_WIDTH = 600;
@@ -53,8 +57,8 @@ SceneObject floorObj;
 SceneObject planeBody;
 SceneObject planeWing;
 SceneObject planePropeller;
-SceneObject particles;
-unsigned int particlesVBO;
+SceneObject particles[ITERATIONS];
+unsigned int particlesVBO[ITERATIONS];
 Shader* shaderProgramSolid;
 Shader* shaderProgramParticle;
 
@@ -65,8 +69,11 @@ glm::vec3 camForward(.0f, .0f, -1.0f);
 glm::vec3 camPosition(.0f, 1.6f, 0.0f);
 float linearSpeed = 0.15f, rotationGain = 30.0f;
 
-const unsigned int particleVertexBufferSize = 65536;
+const unsigned int particleVertexBufferSize = 65536 / ITERATIONS;
 const unsigned int particleSize = 3;
+
+glm::vec3 gravityOffset[ITERATIONS];
+glm::vec3 windOffset[ITERATIONS];
 
 int main()
 {
@@ -167,12 +174,6 @@ void drawObjects(){
 
     glm::mat4 scale = glm::scale(1.f, 1.f, 1.f);
 
-    // TODO
-    // update the camera pose and projection
-    // set the matrix that takes points in the world coordinate system and project them
-    // world_to_view -> view_to_perspective_projection
-    // or if we want ot match the multiplication order, we could read
-    // perspective_projection_from_view <- view_from_world
     glm::mat4 projection = glm::perspectiveFovRH_NO(70.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, .01f, 100.0f);
     glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
     glm::mat4 viewProjection = projection * view;
@@ -191,11 +192,32 @@ void drawObjects(){
 }
 
 void drawParticles(){
-    //TODO: change offset with calculated one
-    shaderProgramParticle->setVec3("offset", glm::vec3(0.0f, 0.0f, 0.0f));
+    glm::vec3 offset;
+    for(int i=0;i<ITERATIONS;i++){
 
-    glBindVertexArray(particles.VAO);
-    glDrawArrays(GL_POINTS, 0, particles.vertexCount);
+        offset = gravityOffset[i] + windOffset[i] + glm::vec3(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+        offset -= camPosition + camForward + glm::vec3(BOX_SIZE/2, BOX_SIZE/2, BOX_SIZE/2);
+
+        glm::vec3 position = glm::mod(camPosition + offset, glm::vec3(BOX_SIZE, BOX_SIZE, BOX_SIZE));
+        position += camPosition + camForward - glm::vec3(BOX_SIZE/2, BOX_SIZE/2, BOX_SIZE/2);
+
+        glm::mat4 scale = glm::scale(1.f, 1.f, 1.f);
+
+        glm::mat4 projection = glm::perspectiveFovRH_NO(70.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, .01f, 100.0f);
+        glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
+        glm::mat4 viewProjection = projection * view;
+
+        //glm::mat4 translation = glm::translate(position);
+        glm::mat4 translation = glm::translate(0.0f, 0.0f, 0.0f);
+
+        shaderProgramParticle->setMat4("model", viewProjection*translation);
+        shaderProgramParticle->setVec3("boxSize", glm::vec3(BOX_SIZE,BOX_SIZE,BOX_SIZE));
+        shaderProgramParticle->setVec3("offset", offset);
+
+
+        glBindVertexArray(particles[i].VAO);
+        glDrawArrays(GL_POINTS, 0, particles[i].vertexCount);
+    }
 }
 
 
@@ -263,8 +285,10 @@ void setup(){
     planePropeller.VAO = createVertexArraySolid(planePropellerVertices, planePropellerColors, planePropellerIndices);
     planePropeller.vertexCount = planePropellerIndices.size();
 
-    particles.VAO = createVertexArrayParticles(particleVertexBufferSize);
-    particles.vertexCount = particleVertexBufferSize;
+    for(int i=0;i<ITERATIONS;i++){
+        particles[i].VAO = createVertexArrayParticles(particleVertexBufferSize, i);
+        particles[i].vertexCount = particleVertexBufferSize;
+    }
 }
 
 
@@ -292,21 +316,21 @@ unsigned int createVertexArraySolid(const std::vector<float> &positions, const s
     return VAO;
 }
 
-unsigned int createVertexArrayParticles(unsigned int particlesNumber){
+unsigned int createVertexArrayParticles(unsigned int particlesNumber, int i){
     unsigned int VAO;
     glGenVertexArrays(1, &VAO);
 
-    glGenBuffers(1, &particlesVBO);
+    glGenBuffers(1, &particlesVBO[i]);
 
     glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, particlesVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, particlesVBO[i]);
 
     // initialize particle buffer, set all values to 0
     std::vector<float> data(particleVertexBufferSize * particleSize);
 
     for(unsigned int i = 0; i < data.size(); i++){
         float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-        data[i] = r*2.0f - 1.0f;
+        data[i] = BOX_SIZE + r * BOX_SIZE;//[BoxSize;2BoxSize]
     }
 
 
