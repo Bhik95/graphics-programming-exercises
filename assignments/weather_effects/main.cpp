@@ -207,8 +207,8 @@ void drawParticles(){
         glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
         glm::mat4 viewProjection = projection * view;
 
-        //glm::mat4 translation = glm::translate(position);
-        glm::mat4 translation = glm::translate(0.0f, 0.0f, 0.0f);
+        glm::mat4 translation = glm::translate(position);
+        //glm::mat4 translation = glm::translate(0.0f, 0.0f, 0.0f);
 
         shaderProgramParticle->setMat4("model", viewProjection*translation);
         shaderProgramParticle->setVec3("boxSize", glm::vec3(BOX_SIZE,BOX_SIZE,BOX_SIZE));

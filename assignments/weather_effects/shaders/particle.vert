@@ -7,6 +7,6 @@ uniform vec3 boxSize;
 
 void main()
 {
-    gl_Position = model*vec4(mod(pos+offset, boxSize), 1.0);
+    gl_Position = model*vec4(mod(pos+offset, boxSize) - boxSize/2.0, 1.0);
     gl_PointSize = 2.0*(1-gl_Position.z);
 }
