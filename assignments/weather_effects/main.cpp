@@ -74,6 +74,7 @@ const unsigned int particleSize = 3;
 
 glm::vec3 gravityOffset[ITERATIONS];
 glm::vec3 windOffset[ITERATIONS];
+glm::vec3 gravityDeltas[ITERATIONS];
 
 int main()
 {
@@ -122,7 +123,7 @@ int main()
     glDepthRange(-1,1); // make the NDC a LEFT handed coordinate system, with the camera pointing towards +z
     glEnable(GL_DEPTH_TEST); // turn on z-buffer depth test
     glDepthFunc(GL_LESS); // draws fragments that are closer to the screen in NDC
-
+    glEnable(GL_VERTEX_PROGRAM_POINT_SIZE); //enable particle size
 
     // render loop
     // -----------
@@ -195,6 +196,10 @@ void drawParticles(){
     glm::vec3 offset;
     for(int i=0;i<ITERATIONS;i++){
 
+        //Update offset
+        gravityOffset[i] += gravityDeltas[i];
+
+        //Calculate actual offsets
         offset = gravityOffset[i] + windOffset[i] + glm::vec3(BOX_SIZE, BOX_SIZE, BOX_SIZE);
         offset -= camPosition + camForward + glm::vec3(BOX_SIZE/2, BOX_SIZE/2, BOX_SIZE/2);
 
@@ -205,12 +210,10 @@ void drawParticles(){
 
         glm::mat4 projection = glm::perspectiveFovRH_NO(70.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, .01f, 100.0f);
         glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
-        glm::mat4 viewProjection = projection * view;
 
         glm::mat4 translation = glm::translate(position);
-        //glm::mat4 translation = glm::translate(0.0f, 0.0f, 0.0f);
 
-        shaderProgramParticle->setMat4("model", viewProjection*translation);
+        shaderProgramParticle->setMat4("model", projection*view*translation);
         shaderProgramParticle->setVec3("boxSize", glm::vec3(BOX_SIZE,BOX_SIZE,BOX_SIZE));
         shaderProgramParticle->setVec3("offset", offset);
 
@@ -288,7 +291,17 @@ void setup(){
     for(int i=0;i<ITERATIONS;i++){
         particles[i].VAO = createVertexArrayParticles(particleVertexBufferSize, i);
         particles[i].vertexCount = particleVertexBufferSize;
+
+        //Setup the speed of the particles (gravity simulations)
+        float minSpeed = 0.05f;
+        float maxSpeed = 0.1f;
+        float t = i / (float)ITERATIONS;
+        float v = t*maxSpeed + (1-t)*minSpeed;
+        gravityDeltas[i] =  glm::vec3 (0, -v, 0); //Direction: down
     }
+
+
+
 }
 
 
