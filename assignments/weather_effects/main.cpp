@@ -71,10 +71,13 @@ float linearSpeed = 0.15f, rotationGain = 30.0f;
 
 const unsigned int particleVertexBufferSize = 65536 / ITERATIONS;
 const unsigned int particleSize = 3;
+const float lineLength = 0.01f;
 
 glm::vec3 gravityOffset[ITERATIONS];
 glm::vec3 windOffset[ITERATIONS];
 glm::vec3 gravityDeltas[ITERATIONS];
+
+glm::mat4 modelViewProj[ITERATIONS];
 
 int main()
 {
@@ -196,6 +199,8 @@ void drawParticles(){
     glm::vec3 offset;
     for(int i=0;i<ITERATIONS;i++){
 
+        glm::mat4 modelViewProjPrev = modelViewProj[i];
+
         //Update offset
         gravityOffset[i] += gravityDeltas[i];
 
@@ -206,20 +211,22 @@ void drawParticles(){
         glm::vec3 position = glm::mod(camPosition + offset, glm::vec3(BOX_SIZE, BOX_SIZE, BOX_SIZE));
         position += camPosition + camForward - glm::vec3(BOX_SIZE/2, BOX_SIZE/2, BOX_SIZE/2);
 
-        glm::mat4 scale = glm::scale(1.f, 1.f, 1.f);
-
         glm::mat4 projection = glm::perspectiveFovRH_NO(70.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, .01f, 100.0f);
         glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
 
         glm::mat4 translation = glm::translate(position);
 
-        shaderProgramParticle->setMat4("model", projection*view*translation);
+        modelViewProj[i] = projection*view*translation;
+
+        shaderProgramParticle->setMat4("modelViewProj", modelViewProj[i]);
+        shaderProgramParticle->setMat4("modelViewProjPrev", modelViewProjPrev);
+        shaderProgramParticle->setFloat("lineLength", lineLength);
         shaderProgramParticle->setVec3("boxSize", glm::vec3(BOX_SIZE,BOX_SIZE,BOX_SIZE));
         shaderProgramParticle->setVec3("offset", offset);
 
 
         glBindVertexArray(particles[i].VAO);
-        glDrawArrays(GL_POINTS, 0, particles[i].vertexCount);
+        glDrawArrays(GL_LINES, 0, particles[i].vertexCount);
     }
 }
 
@@ -341,9 +348,17 @@ unsigned int createVertexArrayParticles(unsigned int particlesNumber, int i){
     // initialize particle buffer, set all values to 0
     std::vector<float> data(particleVertexBufferSize * particleSize);
 
+    float r;
     for(unsigned int i = 0; i < data.size(); i++){
-        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-        data[i] = BOX_SIZE + r * BOX_SIZE;//[BoxSize;2BoxSize]
+        if((i/particleSize) % 2 == 1){
+            data[i] = data[i - particleSize];//2nd vertex of the
+        }
+        else{
+            r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+            data[i] = BOX_SIZE + r * BOX_SIZE;//[BoxSize;2BoxSize]
+        }
+
+
     }
 
 
