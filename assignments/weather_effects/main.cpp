@@ -196,6 +196,11 @@ void drawObjects(){
 }
 
 void drawParticles(){
+
+    // Enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     glm::vec3 offset;
     for(int i=0;i<ITERATIONS;i++){
 

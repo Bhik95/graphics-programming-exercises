@@ -7,7 +7,7 @@ uniform vec3 offset;
 uniform vec3 boxSize;
 uniform float lineLength;
 
-out vec3 posC;
+out vec4 color;
 
 void main()
 {
@@ -18,20 +18,20 @@ void main()
     worldPosPrev.w = 1.0;
 
     vec4 bottom = modelViewProj * worldPos;
+    vec4 top = modelViewProj * worldPosPrev;
     vec4 topPrev = modelViewProjPrev * worldPosPrev;
 
-    vec2 dir = (topPrev.xy/topPrev.w) - (bottom.xy/bottom.w);
+    vec2 dir = (top.xy/top.w) - (bottom.xy/bottom.w);
+    vec2 dirPrev = (topPrev.xy/topPrev.w) - (bottom.xy/bottom.w);
 
-    vec2 dirPerp = normalize(vec2(-dir.y, dir.x));
+    float lenDir = length(dir);
+    float lenDirPrev = length(dirPrev);
 
-    vec4 projPos;
-
-    projPos = mix(topPrev, bottom, gl_VertexID % 2);
+    float lenColorScale = clamp((lenDir/lenDirPrev) * boxSize.x, 0.0, 1.0);
 
     //projPos.xy += (0.5 - uv.x) * dirPerp * lineLength;
 
-    gl_Position = projPos;
+    gl_Position = mix(topPrev, bottom, gl_VertexID % 2);
 
-    //posC = gl_Position.xyz / 10.0;
-    posC = vec3(gl_Position.xyz / gl_Position.w);
+    color = vec4(1.0, 1.0, 1.0, lenColorScale);
 }
