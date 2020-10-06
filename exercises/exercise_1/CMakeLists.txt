@@ -23,6 +23,6 @@ endif()
 
 
 FOREACH(subdir ${SUBDIRS})
-    add_executable(${subdir} ${subdir}/main.cpp)
+    add_executable(${subdir} ${subdir}/main.cpp ../../useful-code/openGL_useful_code.cpp)
     target_link_libraries(${subdir} ${libraries})
 ENDFOREACH()
