@@ -4,6 +4,7 @@
 #include <shader_s.h>
 
 #include <iostream>
+#include <chrono>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -11,6 +12,9 @@ void processInput(GLFWwindow *window);
 // settings
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
+
+// Global variables
+float currentTime;
 
 int main()
 {
@@ -75,11 +79,16 @@ int main()
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     // glBindVertexArray(0);
 
-
+    auto beginTime = std::chrono::high_resolution_clock::now();
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
     {
+        // update current time
+        auto frameStart = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> appTime = frameStart - beginTime;
+        currentTime = appTime.count();
+
         // input
         // -----
         processInput(window);
@@ -91,7 +100,9 @@ int main()
         // render the triangle
         ourShader.use();
 
-        ourShader.setFloat("screenHeight", (float)SCR_HEIGHT);
+        ourShader.setFloat("uScreenHeight", (float)SCR_HEIGHT);
+
+        ourShader.setFloat("uTime", currentTime);
 
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
