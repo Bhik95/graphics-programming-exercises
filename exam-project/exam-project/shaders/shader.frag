@@ -8,6 +8,8 @@ out vec4 fragColor;
 
 uniform float uScreenHeight;
 uniform float uTime;
+uniform mat4 uLook;
+uniform vec3 uCamPosition;
 
 float GetDist(vec3 p){
     vec4 sphere = vec4(0, 1, 6, 1.);
@@ -65,8 +67,8 @@ void main()
     vec2 uv = (gl_FragCoord.xy/uScreenHeight) * 2.0 - 1.0; //[-1; 1]x[-1; 1]
 
     // Camera Model
-    vec3 ro = vec3(0, 1, 0); //Ray origin (camera)
-    vec3 rd = normalize(vec3(uv.x, uv.y, 1));//Ray direction
+    vec3 ro = uCamPosition; //Ray origin (camera)
+    vec3 rd = normalize((uLook * vec4(uv.x, uv.y, 1, 0)).xyz);//Ray direction
 
     float d = RayMarch(ro, rd);
 
