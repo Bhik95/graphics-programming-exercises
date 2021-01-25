@@ -8,16 +8,23 @@ out vec4 fragColor;
 
 uniform float uScreenHeight;
 uniform float uTime;
-uniform mat4 uLook;
+uniform vec3 uCamForward;
 uniform vec3 uCamPosition;
 
+// polynomial smooth min
+float smin( float a, float b, float k )
+{
+    float h = max( k-abs(a-b), 0.0 )/k;
+    return min( a, b ) - h*h*k*(1.0/4.0);
+}
+
 float GetDist(vec3 p){
-    vec4 sphere = vec4(0, 1, 6, 1.);
+    vec4 sphere = vec4(0, 1, 0, 1.);
 
     float sphereDist = length(p - sphere.xyz) - sphere.w;
-    float planeDist = p.y - .5*sin(p.x);
+    float planeDist = p.y;
 
-    return min(sphereDist, planeDist*.2);
+    return smin(sphereDist, planeDist*.2, 0.5);
 }
 
 vec3 GetNormal(vec3 p){
@@ -45,8 +52,7 @@ float RayMarch(vec3 ro, vec3 rd){
 
 float GetLight(vec3 pos){
     //Light position
-    vec3 lightPos = vec3(0., 5, 6);
-    lightPos.xz += vec2(sin(uTime), cos(uTime))*2.;
+    vec3 lightPos = vec3(5.0, 5.0, 6);
 
     vec3 lightDir = normalize(lightPos-pos);
 
@@ -67,12 +73,16 @@ void main()
     vec2 uv = (gl_FragCoord.xy/uScreenHeight) * 2.0 - 1.0; //[-1; 1]x[-1; 1]
 
     // Camera Model
-    vec3 ro = uCamPosition; //Ray origin (camera)
-    vec3 rd = normalize((uLook * vec4(uv.x, uv.y, 1, 0)).xyz);//Ray direction
+    vec3 ray_origin = uCamPosition; //Ray origin (camera)
 
-    float d = RayMarch(ro, rd);
+    vec3 camRight = cross(uCamForward, vec3(0.0, 1.0, 0.0));
+    vec3 camUp = cross(camRight, uCamForward);
 
-    vec3 pos = vec3(ro+d*rd);
+    vec3 ray_direction = normalize(uv.x * camRight + uv.y * camUp + uCamForward);//TODO: Ray direction given by mouse
+
+    float d = RayMarch(ray_origin, ray_direction);
+
+    vec3 pos = vec3(ray_origin+d*ray_direction);
 
     float diffuse = GetLight(pos);
     

@@ -21,8 +21,8 @@ const unsigned int SCR_HEIGHT = 600;
 // Global variables
 float currentTime;
 glm::vec3 camForward(.0f, .0f, -1.0f);
-glm::vec3 camPosition(.0f, 1.6f, 0.0f);
-float linearSpeed = 0.15f, rotationGain = 30.0f;
+glm::vec3 camPosition(.0f, 1.6f, 6.0f);
+float linearSpeed = 0.03f, rotationGain = 30.0f;
 
 int main()
 {
@@ -39,7 +39,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Raymarch Project", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -49,6 +49,7 @@ int main()
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, cursor_input_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -113,7 +114,7 @@ int main()
         ourShader.setFloat("uTime", currentTime);
 
         glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
-        ourShader.setMat4("uLook", view);
+        ourShader.setVec3("uCamForward", camForward);
         ourShader.setVec3("uCamPosition", camPosition);
 
         glBindVertexArray(VAO);
@@ -209,6 +210,14 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
         // vector perpendicular to camera forward and Y-axis
         camPosition += glm::cross(forwardInXZ, glm::vec3(0, 1, 0)) * linearSpeed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
+        // move down
+        camPosition -= glm::vec3(0, 1, 0) * linearSpeed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS){
+        // move up
+        camPosition += glm::vec3(0, 1, 0) * linearSpeed;
     }
 }
 
