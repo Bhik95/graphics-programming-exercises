@@ -16,14 +16,14 @@ void cursorInRange(float screenX, float screenY, int screenW, int screenH, float
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void cursor_input_callback(GLFWwindow* window, double posX, double posY);
-void loadBrickTexture();
+void loadTexture();
 
 // settings
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
 
 // Global variables
-unsigned int brickTextureId;
+unsigned int textureId;
 
 float currentTime;
 glm::vec3 camForward(.0f, .0f, -1.0f);
@@ -100,9 +100,9 @@ int main()
     // -----------
 
     // ---------
-    // brick texture
-    glGenTextures(1, &brickTextureId);
-    loadBrickTexture();
+    // texture
+    glGenTextures(1, &textureId);
+    loadTexture();
 
     while (!glfwWindowShouldClose(window))
     {
@@ -127,7 +127,7 @@ int main()
 
         glActiveTexture(GL_TEXTURE0);
         ourShader.setInt("texture_diffuse", 0);
-        glBindTexture(GL_TEXTURE_2D, brickTextureId);
+        glBindTexture(GL_TEXTURE_2D, textureId);
 
         glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
         ourShader.setVec3("uCamForward", camForward);
@@ -246,9 +246,9 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void loadBrickTexture(){
+void loadTexture(){
     int width, height, nrComponents;
-    unsigned char *data = stbi_load("textures/brick.jpg", &width, &height, &nrComponents, 0);
+    unsigned char *data = stbi_load("textures/marble.jpg", &width, &height, &nrComponents, 0);
     if (data) {
         GLenum format = GL_RGB;
 //        if (nrComponents == 1)
@@ -258,7 +258,7 @@ void loadBrickTexture(){
 //        else if (nrComponents == 4)
 //            format = GL_RGBA;
 
-        glBindTexture(GL_TEXTURE_2D, brickTextureId);
+        glBindTexture(GL_TEXTURE_2D, textureId);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 

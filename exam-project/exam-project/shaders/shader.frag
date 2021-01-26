@@ -3,6 +3,7 @@
 #define MAX_STEPS 100
 #define MAX_DIST 100.
 #define SURFACE_DIST .01
+#define TILING_FACTOR 0.2
 
 out vec4 fragColor;
 
@@ -87,8 +88,17 @@ void main()
     vec3 pos = vec3(ray_origin+d*ray_direction);
 
     float diffuse = GetLight(pos);
-    
-    vec3 col = vec3(diffuse);
 
-    fragColor = vec4(col, 1.0);
+    vec3 normal = GetNormal(pos);
+
+    vec4 xz_projection = texture(texture_diffuse, pos.xz * TILING_FACTOR);
+    vec4 xy_projection = texture(texture_diffuse, pos.xy * TILING_FACTOR);
+    vec4 yz_projection = texture(texture_diffuse, pos.yz * TILING_FACTOR);
+
+    vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
+
+    //vec3 col = vec3(diffuse);
+
+    //fragColor = vec4(col, 1.0);
+    fragColor = albedo * diffuse;
 }
