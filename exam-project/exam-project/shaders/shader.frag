@@ -1,9 +1,9 @@
 #version 330 core
 
-#define MAX_STEPS 100
+#define MAX_STEPS 200
 #define MAX_DIST 100.
-#define SURFACE_DIST .01
-#define TILING_FACTOR 0.2
+#define SURFACE_DIST .001
+#define TILING_FACTOR 0.1
 
 out vec4 fragColor;
 
@@ -21,13 +21,25 @@ float smin( float a, float b, float k )
     return min( a, b ) - h*h*k*(1.0/4.0);
 }
 
-float GetDist(vec3 p){
-    vec4 sphere = vec4(0, 1, 0, 1.);
+float sdSphere( vec3 p, float s )
+{
+    return length(p)-s;
+}
 
-    float sphereDist = length(p - sphere.xyz) - sphere.w;
+float sdTorus( vec3 p, vec2 t )
+{
+    vec2 q = vec2(length(p.xz)-t.x,p.y);
+    return length(q)-t.y;
+}
+
+float GetDist(vec3 p){
+    float sphereDist = sdSphere(p - vec3(0, 1, 0), 1.0);
+    float torusDist = sdTorus(p - vec3(0, 1, 0), vec2(1.0, 0.1));
     float planeDist = p.y;
 
-    return smin(sphereDist, planeDist*.2, 0.5);
+    float t = sin(uTime)*0.5+0.5;
+
+    return smin(t*sphereDist+(1-t)*torusDist, planeDist*.2, 0.5);
 }
 
 vec3 GetNormal(vec3 p){
@@ -85,20 +97,21 @@ void main()
 
     float d = RayMarch(ray_origin, ray_direction);
 
-    vec3 pos = vec3(ray_origin+d*ray_direction);
+    fragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    if(d < MAX_DIST){
+        vec3 pos = vec3(ray_origin+d*ray_direction);
 
-    float diffuse = GetLight(pos);
+        float diffuse = GetLight(pos);
 
-    vec3 normal = GetNormal(pos);
+        vec3 normal = GetNormal(pos);
 
-    vec4 xz_projection = texture(texture_diffuse, pos.xz * TILING_FACTOR);
-    vec4 xy_projection = texture(texture_diffuse, pos.xy * TILING_FACTOR);
-    vec4 yz_projection = texture(texture_diffuse, pos.yz * TILING_FACTOR);
+        vec4 xz_projection = texture(texture_diffuse, pos.xz * TILING_FACTOR);
+        vec4 xy_projection = texture(texture_diffuse, pos.xy * TILING_FACTOR);
+        vec4 yz_projection = texture(texture_diffuse, pos.yz * TILING_FACTOR);
 
-    vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
+        vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
+        fragColor = albedo * diffuse;
 
-    //vec3 col = vec3(diffuse);
-
-    //fragColor = vec4(col, 1.0);
-    fragColor = albedo * diffuse;
+        vec4 aaf = fwidth(fragColor); // Anti-aliasing factor
+    }
 }
