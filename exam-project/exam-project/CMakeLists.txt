@@ -12,6 +12,9 @@ target_include_directories(${subdir} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 ## copy shaders folder to build folder
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+## copy textures
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 ## copy again at the time the current target gets compiled
 add_custom_command(
         TARGET ${subdir} POST_BUILD

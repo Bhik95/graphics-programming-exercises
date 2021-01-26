@@ -10,6 +10,8 @@ uniform float uScreenHeight;
 uniform float uTime;
 uniform vec3 uCamForward;
 uniform vec3 uCamPosition;
+// material texture
+uniform sampler2D texture_diffuse;
 
 // polynomial smooth min
 float smin( float a, float b, float k )

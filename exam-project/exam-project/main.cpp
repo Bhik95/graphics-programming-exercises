@@ -4,6 +4,9 @@
 #include <shader.h>
 #include "glmutils.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #include <iostream>
 #include <chrono>
 
@@ -13,12 +16,15 @@ void cursorInRange(float screenX, float screenY, int screenW, int screenH, float
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void cursor_input_callback(GLFWwindow* window, double posX, double posY);
+void loadBrickTexture();
 
 // settings
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
 
 // Global variables
+unsigned int brickTextureId;
+
 float currentTime;
 glm::vec3 camForward(.0f, .0f, -1.0f);
 glm::vec3 camPosition(.0f, 1.6f, 6.0f);
@@ -92,6 +98,12 @@ int main()
     auto beginTime = std::chrono::high_resolution_clock::now();
     // render loop
     // -----------
+
+    // ---------
+    // brick texture
+    glGenTextures(1, &brickTextureId);
+    loadBrickTexture();
+
     while (!glfwWindowShouldClose(window))
     {
         // update current time
@@ -112,6 +124,10 @@ int main()
 
         ourShader.setFloat("uScreenHeight", (float)SCR_HEIGHT);
         ourShader.setFloat("uTime", currentTime);
+
+        glActiveTexture(GL_TEXTURE0);
+        ourShader.setInt("texture_diffuse", 0);
+        glBindTexture(GL_TEXTURE_2D, brickTextureId);
 
         glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
         ourShader.setVec3("uCamForward", camForward);
@@ -228,4 +244,34 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+}
+
+void loadBrickTexture(){
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load("textures/brick.jpg", &width, &height, &nrComponents, 0);
+    if (data) {
+        GLenum format = GL_RGB;
+//        if (nrComponents == 1)
+//            format = GL_RED;
+//        else if (nrComponents == 3)
+//            format = GL_RGB;
+//        else if (nrComponents == 4)
+//            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, brickTextureId);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load" << std::endl;
+        stbi_image_free(data);
+    }
 }
