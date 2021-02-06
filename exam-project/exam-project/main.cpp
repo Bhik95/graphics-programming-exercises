@@ -146,6 +146,7 @@ void drawRaymarchTriangle(){
     shaderProgram->setVec3("uCamPosition", camPosition);
     shaderProgram->setMat4("cameraViewMat", view);
     shaderProgram->setFloat("uFov", FOV);
+    shaderProgram->setFloat("uShininess", 1.0);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -244,7 +245,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void loadTexture(){
     int width, height, nrComponents;
-    unsigned char *data = stbi_load("textures/marble.jpg", &width, &height, &nrComponents, 0);
+    unsigned char *data = stbi_load("textures/concrete.png", &width, &height, &nrComponents, 0);
     if (data) {
         GLenum format = GL_RGB;
 //        if (nrComponents == 1)

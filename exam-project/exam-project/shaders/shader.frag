@@ -12,6 +12,7 @@ uniform float uTime;
 uniform vec3 uCamPosition;
 uniform mat4 cameraViewMat;
 uniform float uFov;
+uniform float uShininess;
 
 // material texture
 uniform sampler2D texture_diffuse;
@@ -67,57 +68,67 @@ float RayMarch(vec3 ro, vec3 rd){
     return d0;
 }
 
-float GetLight(vec3 pos){
-    //Light position
+// Returns the (diffuse+specular) * shadow factor
+float GetLight(vec3 pos, vec3 normal){
+
+    // My point light position
     vec3 lightPos = vec3(5.0, 5.0, 6);
 
+    // Blinn-phong
     vec3 lightDir = normalize(lightPos-pos);
+    vec3 viewDir = normalize(uCamPosition-pos);
 
-    vec3 normal = GetNormal(pos);
+    vec3 halfDir = normalize(lightDir + viewDir);
+    float specAngle = clamp(dot(halfDir, normal), 0., 1.);
+    float specular = pow(specAngle, uShininess);
 
     float dif = clamp(dot(normal, lightDir), 0., 1.);
+    float res = clamp(dif + specular, 0., 1.);
 
     // Shadow:
     float d = RayMarch(pos + normal*SURFACE_DIST*2.0, lightDir);
     if(d<length(lightPos-pos))
-    dif*=.1;
+    res*=.1;
 
-    return dif;
+    return res;
 }
 
-//Calculate the ray direction starting at a certain screen position given the Field of View
+//Calculate the ray direction starting from a certain screen position (given the Field of View)
 vec3 getRayDir(vec2 uv) {
     vec2 h = vec2(
     tan(uFov / 2.0) * (uScreenSize.x / uScreenSize.y),
     tan(uFov / 2.0)
     );
     vec3 pCam = vec3(uv * h, -1.0);
+    // Convert from eye space (uv) to world space with the inverse view matrix:
     return normalize((inverse(cameraViewMat) * vec4(pCam, 0.0)).xyz);
 }
 
 void main()
 {
-    vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; //[-1, 1]x [-1, 1]
+    vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; // [-1, 1]x [-1, 1]
 
     vec3 ray_direction = getRayDir(uv);
 
     float d = RayMarch(uCamPosition, ray_direction);
 
-    fragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    fragColor = vec4(0.0, 0.0, 0.0, 0.0); // default color
     if(d < MAX_DIST){
-        vec3 pos = vec3(uCamPosition + d * ray_direction);
-
-        float diffuse = GetLight(pos);
+        vec3 pos = vec3(uCamPosition + d * ray_direction); // position of the point in the ""point cloud""
 
         vec3 normal = GetNormal(pos);
+
+        float diffuseSpec = GetLight(pos, normal);
 
         vec4 xz_projection = texture(texture_diffuse, pos.xz * TILING_FACTOR);
         vec4 xy_projection = texture(texture_diffuse, pos.xy * TILING_FACTOR);
         vec4 yz_projection = texture(texture_diffuse, pos.yz * TILING_FACTOR);
 
         vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
-        fragColor = albedo * diffuse;
+        fragColor = albedo * diffuseSpec;
+        //fragColor = vec4(diffuseSpec, diffuseSpec, diffuseSpec, 1.0);
     }
+
 
     //fragColor = vec4(ray_direction, 1.0);
     //fragColor = vec4(uv, 0.0, 1.0);
