@@ -12,6 +12,7 @@
 
 // glfw and input functions
 // ------------------------
+void setupSingleTriangle();
 void drawRaymarchTriangle();
 void cursorInRange(float screenX, float screenY, int screenW, int screenH, float min, float max, float &x, float &y);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -22,6 +23,7 @@ void loadTexture();
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+const unsigned int FOV = 70;
 
 // Global variables
 float linearSpeed = 0.06f;
@@ -60,49 +62,18 @@ int main()
     glfwSetCursorPosCallback(window, cursor_input_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // glad: load all OpenGL function pointers
-    // ---------------------------------------
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
 
-    // build and compile our shader program
-    // ------------------------------------
-    shaderProgram = new Shader("shaders/shader.vert", "shaders/shader.frag"); // you can name your shader files however you like
+    shaderProgram = new Shader("shaders/shader.vert", "shaders/shader.frag");
 
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
-    float vertices[] = { // This single triangle covers the whole screen
-            // positions         // colors
-            3.0f, -1.0f, 0.0f,  // bottom right
-            -1.0f, -1.0f, 0.0f,  // bottom left
-            -1.0f,  3.0f, 0.0f,   // top - left
-    };
-
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    // glBindVertexArray(0);
+    setupSingleTriangle();
 
     auto beginTime = std::chrono::high_resolution_clock::now();
-    // render loop
-    // -----------
 
-    // ---------
-    // texture
     glGenTextures(1, &textureId);
     loadTexture();
 
@@ -113,30 +84,25 @@ int main()
         std::chrono::duration<float> appTime = frameStart - beginTime;
         currentTime = appTime.count();
 
-        // input
-        // -----
         processInput(window);
 
         // render
         // ------
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        // render the triangle
-        shaderProgram->use();
 
+        shaderProgram->use();
         shaderProgram->setVec2("uScreenSize", glm::vec2(SCR_WIDTH, SCR_HEIGHT));
         shaderProgram->setFloat("uTime", currentTime);
 
+        // render the triangle
         drawRaymarchTriangle();
 
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // optional: de-allocate all resources once they've outlived their purpose:
-    // ------------------------------------------------------------------------
+    // de-allocate resources
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
 
@@ -148,21 +114,38 @@ int main()
     return 0;
 }
 
+void setupSingleTriangle(){
+    // Here I setup a single triangle that covers the whole screen
+    float vertices[] = {
+            // positions
+            3.0f, -1.0f, 0.0f,  // bottom right
+            -1.0f, -1.0f, 0.0f,  // bottom left
+            -1.0f,  3.0f, 0.0f,   // top - left
+    };
+
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+}
+
 void drawRaymarchTriangle(){
-    glm::mat4 scale = glm::scale(1.f, 1.f, 1.f);
-
-
-    //glm::mat4 projection = glm::perspectiveFovRH_NO(70.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, .01f, 100.0f);
+    //Note to Henrique: (The reverse of) the "projection" stage is done in the FRAGMENT SHADER in getRayDir
     glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
-    //glm::mat4 viewProjection = projection * view;
-
 
     glActiveTexture(GL_TEXTURE0);
     shaderProgram->setInt("texture_diffuse", 0);
     glBindTexture(GL_TEXTURE_2D, textureId);
 
     shaderProgram->setVec3("uCamPosition", camPosition);
-    shaderProgram->setMat4("cameraView", view);
+    shaderProgram->setMat4("cameraViewMat", view);
+    shaderProgram->setFloat("uFov", FOV);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);

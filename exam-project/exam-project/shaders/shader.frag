@@ -4,14 +4,14 @@
 #define MAX_DIST 100.
 #define SURFACE_DIST .001
 #define TILING_FACTOR 0.1
-#define FOV 70
 
 out vec4 fragColor;
 
 uniform vec2 uScreenSize;
 uniform float uTime;
 uniform vec3 uCamPosition;
-uniform mat4 cameraView;
+uniform mat4 cameraViewMat;
+uniform float uFov;
 
 // material texture
 uniform sampler2D texture_diffuse;
@@ -85,20 +85,21 @@ float GetLight(vec3 pos){
     return dif;
 }
 
-vec3 getRayDir(float fov, vec2 uv) {
+//Calculate the ray direction starting at a certain screen position given the Field of View
+vec3 getRayDir(vec2 uv) {
     vec2 h = vec2(
-    tan(fov / 2.0) * (uScreenSize.x / uScreenSize.y),
-    tan(fov / 2.0)
+    tan(uFov / 2.0) * (uScreenSize.x / uScreenSize.y),
+    tan(uFov / 2.0)
     );
     vec3 pCam = vec3(uv * h, -1.0);
-    return normalize((inverse(cameraView) * vec4(pCam, 0.0)).xyz);
+    return normalize((inverse(cameraViewMat) * vec4(pCam, 0.0)).xyz);
 }
 
 void main()
 {
     vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; //[-1, 1]x [-1, 1]
 
-    vec3 ray_direction = getRayDir(FOV, uv);
+    vec3 ray_direction = getRayDir(uv);
 
     float d = RayMarch(uCamPosition, ray_direction);
 
