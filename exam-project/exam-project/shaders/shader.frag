@@ -2,9 +2,9 @@
 
 #define MAX_STEPS 200
 #define MAX_DIST 100.
-#define SURFACE_DIST .001
+#define SURFACE_DIST .01
 #define TILING_FACTOR 0.1
-#define BASE_DIFFUSE 0.2
+#define BASE_DIFFUSE 0.15
 #define SURFACE_DIST_SHADOW .1
 #define SHADOW_K 32
 
@@ -27,6 +27,12 @@ float smin( float a, float b, float k )
     return min( a, b ) - h*h*k*(1.0/4.0);
 }
 
+float sdRoundBox( vec3 p, vec3 b, float r )
+{
+    vec3 q = abs(p) - b;
+    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
+}
+
 float sdSphere( vec3 p, float s )
 {
     return length(p)-s;
@@ -38,14 +44,52 @@ float sdTorus( vec3 p, vec2 t )
     return length(q)-t.y;
 }
 
+float sdCappedCone( vec3 p, float h, float r1, float r2, float roundness)
+{
+    vec2 q = vec2( length(p.xz), p.y );
+    vec2 k1 = vec2(r2,h);
+    vec2 k2 = vec2(r2-r1,2.0*h);
+    vec2 ca = vec2(q.x-min(q.x,(q.y<0.0)?r1:r2), abs(q.y)-h);
+    vec2 cb = q - k1 + k2*clamp( dot(k1-q,k2)/dot(k2, k2), 0.0, 1.0 );
+    float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
+    return s*sqrt( min(dot(ca, ca),dot(cb, cb))) - roundness;
+}
+
+float sdVerticalCapsule( vec3 p, float h, float r )
+{
+    p.y -= clamp( p.y, 0.0, h );
+    return length( p ) - r;
+}
+
+float sdCone( vec3 p, vec2 c, float h )
+{
+    float q = length(p.xz);
+    return max(dot(c.xy,vec2(q,p.y)),-h-p.y);
+}
+
+// A cute tree in a vase :D
+float sdTree(vec3 p){
+    float vase = sdCappedCone(p, 0.4, 0.4, 0.6, 0.1);
+    float cone1 = sdCone(p - vec3(0, 2.7, 0), vec2(0.86602540378, 0.5), 1.5);
+    float cone2 = sdCone(p - vec3(0, 1.7, 0), vec2(0.70710678118, 0.70710678118), 1.);
+    float cones = min(cone1, cone2);
+    float trunk = sdVerticalCapsule(p - vec3(0, 0.5, 0), 1.0, 0.1);
+    return min(vase, min(trunk,cones));
+}
+
 float GetDist(vec3 p){
     float sphereDist = sdSphere(p - vec3(0, 1, 0), 1.0);
     float torusDist = sdTorus(p - vec3(0, 1, 0), vec2(1.0, 0.1));
     float planeDist = p.y;
 
     float t = sin(uTime)*0.5+0.5;
+    float torusSphereBlend = smin(t*sphereDist+(1-t)*torusDist, planeDist*.2, 0.5);
 
-    return smin(t*sphereDist+(1-t)*torusDist, planeDist*.2, 0.5);
+    float roundBoxDist = sdRoundBox(p - vec3(0, .6, -10), vec3(.5, .25, .5), .1);
+
+    float tree1 = sdTree(p - vec3(6, 0, -6));
+
+    return min(min(roundBoxDist, tree1), torusSphereBlend);
 }
 
 vec3 GetNormal(vec3 p){
@@ -74,11 +118,12 @@ float RayMarch(vec3 ro, vec3 rd){
 float softshadow( in vec3 ro, in vec3 rd, float k )
 {
     float res = 1.0;
-    for( float t=SURFACE_DIST_SHADOW; t<MAX_DIST; ) // I multiply by 100 to solve
+    for( float t=SURFACE_DIST_SHADOW; t<MAX_DIST; )
     {
-        float h = GetDist(ro + rd*t);
+        float h = GetDist(ro + rd*t); // How close my point was to hit an object
         if( h<SURFACE_DIST )
         return 0.0;
+        // t ends up being the distance between the point to shade and the closest scene object
         res = min( res, k*h/t );
         t += h;
     }
@@ -87,8 +132,6 @@ float softshadow( in vec3 ro, in vec3 rd, float k )
 
 // Returns the (diffuse+specular) * shadow factor
 float GetLight(vec3 pos, vec3 normal, vec3 lightDir){
-
-
     // Blinn-phong
     vec3 viewDir = normalize(uCamPosition-pos);
 
@@ -96,7 +139,7 @@ float GetLight(vec3 pos, vec3 normal, vec3 lightDir){
     float specAngle = clamp(dot(halfDir, normal), 0., 1.);
     float specular = clamp(pow(specAngle, uShininess), 0., 1.);
 
-    float dif = clamp(dot(normal, lightDir) + BASE_DIFFUSE, 0., 1.);
+    float dif = clamp(dot(normal, lightDir), 0., 1.);
     float res = clamp(dif + specular, 0., 1.);
 
     return res;
@@ -143,11 +186,11 @@ void main()
 
         float diffuseSpec = GetLight(pos, normal, lightDir);
 
+        // For shadows, raymarch from the collision point towards the light source. K is a smoothing factor
         float shadow = softshadow(pos, lightDir, SHADOW_K);
 
         vec4 albedo = TriplanarMapping(textureTop, textureSides, textureSides, pos, normal);
-        fragColor = albedo * (diffuseSpec * shadow);
-        //fragColor = vec4(diffuseSpec, diffuseSpec, diffuseSpec, 1.0);
+        fragColor = albedo * clamp(diffuseSpec * shadow + BASE_DIFFUSE, 0., 1.);
     }
 
 

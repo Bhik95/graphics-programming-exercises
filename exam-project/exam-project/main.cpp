@@ -26,7 +26,7 @@ const unsigned int SCR_HEIGHT = 600;
 const unsigned int FOV = 70;
 
 // Global variables
-float linearSpeed = 0.06f;
+float linearSpeed = 0.1f;
 float rotationGain = 30.0f;
 
 unsigned int VBO, VAO; //VBO and VAO of the Single Triangle
