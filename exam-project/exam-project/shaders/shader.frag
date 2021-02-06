@@ -4,6 +4,9 @@
 #define MAX_DIST 100.
 #define SURFACE_DIST .001
 #define TILING_FACTOR 0.1
+#define BASE_DIFFUSE 0.2
+#define SURFACE_DIST_SHADOW .1
+#define SHADOW_K 32
 
 out vec4 fragColor;
 
@@ -68,27 +71,33 @@ float RayMarch(vec3 ro, vec3 rd){
     return d0;
 }
 
-// Returns the (diffuse+specular) * shadow factor
-float GetLight(vec3 pos, vec3 normal){
+float softshadow( in vec3 ro, in vec3 rd, float k )
+{
+    float res = 1.0;
+    for( float t=SURFACE_DIST_SHADOW; t<MAX_DIST; ) // I multiply by 100 to solve
+    {
+        float h = GetDist(ro + rd*t);
+        if( h<SURFACE_DIST )
+        return 0.0;
+        res = min( res, k*h/t );
+        t += h;
+    }
+    return res;
+}
 
-    // My point light position
-    vec3 lightPos = vec3(5.0, 5.0, 6);
+// Returns the (diffuse+specular) * shadow factor
+float GetLight(vec3 pos, vec3 normal, vec3 lightDir){
+
 
     // Blinn-phong
-    vec3 lightDir = normalize(lightPos-pos);
     vec3 viewDir = normalize(uCamPosition-pos);
 
     vec3 halfDir = normalize(lightDir + viewDir);
     float specAngle = clamp(dot(halfDir, normal), 0., 1.);
-    float specular = pow(specAngle, uShininess);
+    float specular = clamp(pow(specAngle, uShininess), 0., 1.);
 
-    float dif = clamp(dot(normal, lightDir), 0., 1.);
+    float dif = clamp(dot(normal, lightDir) + BASE_DIFFUSE, 0., 1.);
     float res = clamp(dif + specular, 0., 1.);
-
-    // Shadow:
-    float d = RayMarch(pos + normal*SURFACE_DIST*2.0, lightDir);
-    if(d<length(lightPos-pos))
-    res*=.1;
 
     return res;
 }
@@ -104,8 +113,20 @@ vec3 getRayDir(vec2 uv) {
     return normalize((inverse(cameraViewMat) * vec4(pCam, 0.0)).xyz);
 }
 
+vec4 TriplanarMapping(sampler2D xzSampler, sampler2D xySampler, sampler2D yzSampler, vec3 pos, vec3 normal){
+    vec4 xz_projection = texture(xzSampler, pos.xz * TILING_FACTOR);
+    vec4 xy_projection = texture(xySampler, pos.xy * TILING_FACTOR);
+    vec4 yz_projection = texture(yzSampler, pos.yz * TILING_FACTOR);
+
+    vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
+    return albedo;
+}
+
 void main()
 {
+    // My point light position
+    vec3 lightPos = vec3(5.0, 5.0, 6);
+
     vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; // [-1, 1]x [-1, 1]
 
     vec3 ray_direction = getRayDir(uv);
@@ -116,16 +137,16 @@ void main()
     if(d < MAX_DIST){
         vec3 pos = vec3(uCamPosition + d * ray_direction); // position of the point in the ""point cloud""
 
+        vec3 lightDir = normalize(lightPos-pos);
+
         vec3 normal = GetNormal(pos);
 
-        float diffuseSpec = GetLight(pos, normal);
+        float diffuseSpec = GetLight(pos, normal, lightDir);
 
-        vec4 xz_projection = texture(textureTop, pos.xz * TILING_FACTOR);
-        vec4 xy_projection = texture(textureSides, pos.xy * TILING_FACTOR);
-        vec4 yz_projection = texture(textureSides, pos.yz * TILING_FACTOR);
+        float shadow = softshadow(pos, lightDir, SHADOW_K);
 
-        vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
-        fragColor = albedo * diffuseSpec;
+        vec4 albedo = TriplanarMapping(textureTop, textureSides, textureSides, pos, normal);
+        fragColor = albedo * (diffuseSpec * shadow);
         //fragColor = vec4(diffuseSpec, diffuseSpec, diffuseSpec, 1.0);
     }
 
