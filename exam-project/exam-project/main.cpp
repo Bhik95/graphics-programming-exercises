@@ -12,6 +12,7 @@
 
 // glfw and input functions
 // ------------------------
+void drawRaymarchTriangle();
 void cursorInRange(float screenX, float screenY, int screenW, int screenH, float min, float max, float &x, float &y);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -19,16 +20,20 @@ void cursor_input_callback(GLFWwindow* window, double posX, double posY);
 void loadTexture();
 
 // settings
-const unsigned int SCR_WIDTH = 600;
+const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // Global variables
+float linearSpeed = 0.06f;
+float rotationGain = 30.0f;
+
+unsigned int VBO, VAO; //VBO and VAO of the Single Triangle
 unsigned int textureId;
+Shader* shaderProgram;
 
 float currentTime;
 glm::vec3 camForward(.0f, .0f, -1.0f);
 glm::vec3 camPosition(.0f, 1.6f, 6.0f);
-float linearSpeed = 0.03f, rotationGain = 30.0f;
 
 int main()
 {
@@ -43,8 +48,6 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-    // glfw window creation
-    // --------------------
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Raymarch Project", NULL, NULL);
     if (window == NULL)
     {
@@ -67,7 +70,7 @@ int main()
 
     // build and compile our shader program
     // ------------------------------------
-    Shader ourShader("shaders/shader.vert", "shaders/shader.frag"); // you can name your shader files however you like
+    shaderProgram = new Shader("shaders/shader.vert", "shaders/shader.frag"); // you can name your shader files however you like
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -78,7 +81,6 @@ int main()
             -1.0f,  3.0f, 0.0f,   // top - left
     };
 
-    unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
@@ -120,21 +122,12 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         // render the triangle
-        ourShader.use();
+        shaderProgram->use();
 
-        ourShader.setFloat("uScreenHeight", (float)SCR_HEIGHT);
-        ourShader.setFloat("uTime", currentTime);
+        shaderProgram->setVec2("uScreenSize", glm::vec2(SCR_WIDTH, SCR_HEIGHT));
+        shaderProgram->setFloat("uTime", currentTime);
 
-        glActiveTexture(GL_TEXTURE0);
-        ourShader.setInt("texture_diffuse", 0);
-        glBindTexture(GL_TEXTURE_2D, textureId);
-
-        glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
-        ourShader.setVec3("uCamForward", camForward);
-        ourShader.setVec3("uCamPosition", camPosition);
-
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        drawRaymarchTriangle();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -147,13 +140,34 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
 
+    delete shaderProgram;
+
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
 }
 
-// NEW!
+void drawRaymarchTriangle(){
+    glm::mat4 scale = glm::scale(1.f, 1.f, 1.f);
+
+
+    //glm::mat4 projection = glm::perspectiveFovRH_NO(70.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, .01f, 100.0f);
+    glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
+    //glm::mat4 viewProjection = projection * view;
+
+
+    glActiveTexture(GL_TEXTURE0);
+    shaderProgram->setInt("texture_diffuse", 0);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+
+    shaderProgram->setVec3("uCamPosition", camPosition);
+    shaderProgram->setMat4("cameraView", view);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 // instead of using the NDC to transform from screen space you now can define the range using the
 // min and max parameters
 void cursorInRange(float screenX, float screenY, int screenW, int screenH, float min, float max, float &x, float &y){
@@ -165,7 +179,6 @@ void cursorInRange(float screenX, float screenY, int screenW, int screenH, float
 }
 
 void cursor_input_callback(GLFWwindow* window, double posX, double posY){
-    // TODO
     // rotate the camera position based on mouse movements
     // if you decide to use the lookAt function, make sure that the up vector and the
     // vector from the camera position to the lookAt target are not collinear

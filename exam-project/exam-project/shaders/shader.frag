@@ -4,13 +4,15 @@
 #define MAX_DIST 100.
 #define SURFACE_DIST .001
 #define TILING_FACTOR 0.1
+#define FOV 70
 
 out vec4 fragColor;
 
-uniform float uScreenHeight;
+uniform vec2 uScreenSize;
 uniform float uTime;
-uniform vec3 uCamForward;
 uniform vec3 uCamPosition;
+uniform mat4 cameraView;
+
 // material texture
 uniform sampler2D texture_diffuse;
 
@@ -83,23 +85,26 @@ float GetLight(vec3 pos){
     return dif;
 }
 
+vec3 getRayDir(float fov, vec2 uv) {
+    vec2 h = vec2(
+    tan(fov / 2.0) * (uScreenSize.x / uScreenSize.y),
+    tan(fov / 2.0)
+    );
+    vec3 pCam = vec3(uv * h, -1.0);
+    return normalize((inverse(cameraView) * vec4(pCam, 0.0)).xyz);
+}
+
 void main()
 {
-    vec2 uv = (gl_FragCoord.xy/uScreenHeight) * 2.0 - 1.0; //[-1; 1]x[-1; 1]
+    vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; //[-1, 1]x [-1, 1]
 
-    // Camera Model
-    vec3 ray_origin = uCamPosition; //Ray origin (camera)
+    vec3 ray_direction = getRayDir(FOV, uv);
 
-    vec3 camRight = cross(uCamForward, vec3(0.0, 1.0, 0.0));
-    vec3 camUp = cross(camRight, uCamForward);
-
-    vec3 ray_direction = normalize(uv.x * camRight + uv.y * camUp + uCamForward);//TODO: Ray direction given by mouse
-
-    float d = RayMarch(ray_origin, ray_direction);
+    float d = RayMarch(uCamPosition, ray_direction);
 
     fragColor = vec4(0.0, 0.0, 0.0, 0.0);
     if(d < MAX_DIST){
-        vec3 pos = vec3(ray_origin+d*ray_direction);
+        vec3 pos = vec3(uCamPosition + d * ray_direction);
 
         float diffuse = GetLight(pos);
 
@@ -111,7 +116,8 @@ void main()
 
         vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
         fragColor = albedo * diffuse;
-
-        vec4 aaf = fwidth(fragColor); // Anti-aliasing factor
     }
+
+    //fragColor = vec4(ray_direction, 1.0);
+    //fragColor = vec4(uv, 0.0, 1.0);
 }
