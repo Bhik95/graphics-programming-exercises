@@ -18,7 +18,7 @@ void cursorInRange(float screenX, float screenY, int screenW, int screenH, float
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void cursor_input_callback(GLFWwindow* window, double posX, double posY);
-void loadTexture();
+void loadTexture(const char* filename, unsigned int textureId, GLenum format);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -30,7 +30,8 @@ float linearSpeed = 0.06f;
 float rotationGain = 30.0f;
 
 unsigned int VBO, VAO; //VBO and VAO of the Single Triangle
-unsigned int textureId;
+unsigned int concreteTextureId;
+unsigned int groundTextureId;
 Shader* shaderProgram;
 
 float currentTime;
@@ -74,8 +75,14 @@ int main()
 
     auto beginTime = std::chrono::high_resolution_clock::now();
 
-    glGenTextures(1, &textureId);
-    loadTexture();
+    glGenTextures(1, &concreteTextureId);
+    loadTexture("textures/concrete.png", concreteTextureId, GL_RGBA);
+    glGenTextures(1, &groundTextureId);
+    loadTexture("textures/ground.png", groundTextureId, GL_RGB);
+
+    shaderProgram->use();
+    shaderProgram->setInt("textureSides", 0);
+    shaderProgram->setInt("textureTop", 1);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -92,6 +99,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         shaderProgram->use();
+
         shaderProgram->setVec2("uScreenSize", glm::vec2(SCR_WIDTH, SCR_HEIGHT));
         shaderProgram->setFloat("uTime", currentTime);
 
@@ -140,8 +148,10 @@ void drawRaymarchTriangle(){
     glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
 
     glActiveTexture(GL_TEXTURE0);
-    shaderProgram->setInt("texture_diffuse", 0);
-    glBindTexture(GL_TEXTURE_2D, textureId);
+    glBindTexture(GL_TEXTURE_2D, concreteTextureId);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, groundTextureId);
 
     shaderProgram->setVec3("uCamPosition", camPosition);
     shaderProgram->setMat4("cameraViewMat", view);
@@ -243,11 +253,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void loadTexture(){
+void loadTexture(const char* filename, unsigned int textureId, GLenum format){
     int width, height, nrComponents;
-    unsigned char *data = stbi_load("textures/concrete.png", &width, &height, &nrComponents, 0);
+    unsigned char *data = stbi_load(filename, &width, &height, &nrComponents, 0);
     if (data) {
-        GLenum format = GL_RGB;
 //        if (nrComponents == 1)
 //            format = GL_RED;
 //        else if (nrComponents == 3)

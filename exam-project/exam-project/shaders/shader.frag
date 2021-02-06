@@ -14,8 +14,8 @@ uniform mat4 cameraViewMat;
 uniform float uFov;
 uniform float uShininess;
 
-// material texture
-uniform sampler2D texture_diffuse;
+uniform sampler2D textureSides;
+uniform sampler2D textureTop;
 
 // polynomial smooth min
 float smin( float a, float b, float k )
@@ -120,9 +120,9 @@ void main()
 
         float diffuseSpec = GetLight(pos, normal);
 
-        vec4 xz_projection = texture(texture_diffuse, pos.xz * TILING_FACTOR);
-        vec4 xy_projection = texture(texture_diffuse, pos.xy * TILING_FACTOR);
-        vec4 yz_projection = texture(texture_diffuse, pos.yz * TILING_FACTOR);
+        vec4 xz_projection = texture(textureTop, pos.xz * TILING_FACTOR);
+        vec4 xy_projection = texture(textureSides, pos.xy * TILING_FACTOR);
+        vec4 yz_projection = texture(textureSides, pos.yz * TILING_FACTOR);
 
         vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
         fragColor = albedo * diffuseSpec;
@@ -132,4 +132,6 @@ void main()
 
     //fragColor = vec4(ray_direction, 1.0);
     //fragColor = vec4(uv, 0.0, 1.0);
+    //fragColor = texture(textureSides, uv);
+    //fragColor = texture(textureTop, uv);
 }
