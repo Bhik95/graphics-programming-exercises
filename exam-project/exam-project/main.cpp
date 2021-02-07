@@ -23,7 +23,7 @@ void loadTexture(const char* filename, unsigned int textureId, GLenum format);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
-const unsigned int FOV = 70;
+const unsigned int FOV = 70; // Field of View
 
 // Global variables
 float linearSpeed = 0.1f;
@@ -31,7 +31,7 @@ float rotationGain = 30.0f;
 
 unsigned int VBO, VAO; //VBO and VAO of the Single Triangle
 unsigned int concreteTextureId;
-unsigned int groundTextureId;
+unsigned int mossTextureId;
 Shader* shaderProgram;
 
 float currentTime;
@@ -77,8 +77,8 @@ int main()
 
     glGenTextures(1, &concreteTextureId);
     loadTexture("textures/concrete.png", concreteTextureId, GL_RGBA);
-    glGenTextures(1, &groundTextureId);
-    loadTexture("textures/moss.png", groundTextureId, GL_RGBA);
+    glGenTextures(1, &mossTextureId);
+    loadTexture("textures/moss.png", mossTextureId, GL_RGBA);
 
     shaderProgram->use();
     shaderProgram->setInt("textureSides", 0);
@@ -143,27 +143,27 @@ void setupSingleTriangle(){
     glEnableVertexAttribArray(0);
 }
 
+// Draw the single triangle that covers the whole screen
 void drawRaymarchTriangle(){
-    //Note to Henrique: (The reverse of) the "projection" stage is done in the FRAGMENT SHADER in getRayDir
+    //(The reverse of) the "projection" stage is done in the fragment shader in getRayDir
     glm::mat4 view = glm::lookAt(camPosition, camPosition + camForward, glm::vec3(0,1,0));
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, concreteTextureId);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, groundTextureId);
 
     shaderProgram->setVec3("uCamPosition", camPosition);
     shaderProgram->setMat4("cameraViewMat", view);
     shaderProgram->setFloat("uFov", FOV);
+
+    // Set the textures: concrete for the sides, moss on top
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, concreteTextureId);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, mossTextureId);
+
     shaderProgram->setFloat("uShininess", 1.0);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-// instead of using the NDC to transform from screen space you now can define the range using the
-// min and max parameters
 void cursorInRange(float screenX, float screenY, int screenW, int screenH, float min, float max, float &x, float &y){
     float sum = max - min;
     float xInRange = (float) screenX / (float) screenW * sum - sum/2.0f;

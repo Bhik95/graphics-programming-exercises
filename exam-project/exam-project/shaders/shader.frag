@@ -7,7 +7,7 @@
 
 /*Triplanar Mapping params*/
 #define TILING_FACTOR 0.4 // Tiling factor for the textures
-#define TRIPLANAR_BLEND_SHARPNESS 4 // How sharp is the blending from one projection to the other
+#define TRIPLANAR_BLEND_SHARPNESS 3 // How sharp is the blending from one projection to the other
 
 #define BASE_DIFFUSE 0.1 // Fake global light
 
