@@ -1,21 +1,32 @@
 #version 330 core
 
-#define MAX_STEPS 200
-#define MAX_DIST 100.
-#define SURFACE_DIST .001
-#define TILING_FACTOR 0.4
-#define BASE_DIFFUSE 0.1
+/*Ray marching params*/
+#define MAX_STEPS 200 // Max number of Raymaching iterations
+#define MAX_DIST 100. // Max reachable distance of the raymarcher
+#define SURFACE_DIST .001 // The distance from the surface of an object used as a threshold to identify whether a collision happened or not
+
+/*Triplanar Mapping params*/
+#define TILING_FACTOR 0.4 // Tiling factor for the textures
+#define TRIPLANAR_BLEND_SHARPNESS 4 // How sharp is the blending from one projection to the other
+
+#define BASE_DIFFUSE 0.1 // Fake global light
+
+/*(Soft) Shadows Raymarching params*/
+/* Notice that MAX_STEPS_SHADOW is much lower compared to MAX_STEPS:
+Decreasing the value greatly improves performance and the fidelity of the soft shadows is not noticeable
+*/
+#define MAX_STEPS_SHADOW 5
 #define SURFACE_DIST_SHADOW .1
-#define SHADOW_K 8
+#define SHADOW_K 8 // Softness param
 
 out vec4 fragColor;
 
-uniform vec2 uScreenSize;
+uniform vec2 uScreenSize; // Screen size in pixel
 uniform float uTime;
 uniform vec3 uCamPosition;
-uniform mat4 cameraViewMat;
-uniform float uFov;
-uniform float uShininess;
+uniform mat4 cameraViewMat; // Camera view matrix
+uniform float uFov; // Field of view
+uniform float uShininess; // Shininess of the material
 
 uniform sampler2D textureSides;
 uniform sampler2D textureTop;
@@ -27,23 +38,27 @@ float smin( float a, float b, float k )
     return min( a, b ) - h*h*k*(1.0/4.0);
 }
 
+// Signed distance field of a Round Box with bounds b and radius r
 float sdRoundBox( vec3 p, vec3 b, float r )
 {
     vec3 q = abs(p) - b;
     return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
 }
 
+// Signed distance field of a Sphere of radius s
 float sdSphere( vec3 p, float s )
 {
     return length(p)-s;
 }
 
+// Signed distance field of a torus with (radius1, radius2) t
 float sdTorus( vec3 p, vec2 t )
 {
     vec2 q = vec2(length(p.xz)-t.x,p.y);
     return length(q)-t.y;
 }
 
+// Signed distance field of a capped cone of height h, radiuses r1 and r2, and roundness
 float sdCappedCone( vec3 p, float h, float r1, float r2, float roundness)
 {
     vec2 q = vec2( length(p.xz), p.y );
@@ -55,25 +70,28 @@ float sdCappedCone( vec3 p, float h, float r1, float r2, float roundness)
     return s*sqrt( min(dot(ca, ca),dot(cb, cb))) - roundness;
 }
 
+// Signed distance field of a capsule with height h and radius r
 float sdVerticalCapsule( vec3 p, float h, float r )
 {
     p.y -= clamp( p.y, 0.0, h );
     return length( p ) - r;
 }
 
+// Signed distance field of a box with bounds b
 float sdBox( vec3 p, vec3 b )
 {
     vec3 q = abs(p) - b;
     return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
 
+// Signed distance field of a cone with c=(cos(theta), sin(theta)) and height h
 float sdCone( vec3 p, vec2 c, float h )
 {
     float q = length(p.xz);
     return max(dot(c.xy,vec2(q,p.y)),-h-p.y);
 }
 
-// A cute tree in a vase :D
+// Signed distance field of a tree in a vase
 float sdTree(vec3 p){
     float vase = sdCappedCone(p, 0.4, 0.4, 0.6, 0.1);
     float cone1 = sdCone(p - vec3(0, 2.7, 0), vec2(0.86602540378, 0.5), 1.5);
@@ -83,49 +101,51 @@ float sdTree(vec3 p){
     return min(vase, min(trunk,cones));
 }
 
+// Signed distance field of a forest (repeated trees) with a central area with no trees
 float sdForest(vec3 p){
     float c = 3;
     vec3 q = mod(p+0.5*c,c)-0.5*c; // q is for repetition
     q.y = p.y;
-    return max(sdTree(q), -sdBox(p, vec3(11, 10, 11))); // subtraction: (forest - area (box) without a forest)
+    float repeatedTreesDist = sdTree(q);
+    return max(repeatedTreesDist, -sdBox(p, vec3(11, 10, 11))); // Boolean Subtraction: max(d1, -d2)
 }
 
+// Signed distance field of a sphere and a torus that lerp over time in a sinusoidal pattern
 float sdTorusSphereLerp(vec3 p){
-    float sphereDist = sdSphere(p - vec3(0, 1, 0), 1.0);
-    float torusDist = sdTorus(p - vec3(0, 1, 0), vec2(1.0, 0.1));
+    float sphereDist = sdSphere(p, 1.0);
+    float torusDist = sdTorus(p, vec2(1.0, 0.1));
+
     float t = sin(uTime)*0.5+0.5;
-    return t*sphereDist+(1-t)*torusDist;
+    return t*sphereDist+(1-t)*torusDist; // Lerp
 }
 
+// Signed distance field of the WHOLE SCENE
 float GetDist(vec3 p){
-
-    float torusSphereBlendDist = sdTorusSphereLerp(p); // The object that lerps between a sphere and a torus through time
-
+    float torusSphereBlendDist = sdTorusSphereLerp(p - vec3(0, 1, 0)); // The object that lerps between a sphere and a torus through time
     float terrainDist = p.y; // The terrain (xz plan)
+    float roundBoxDist = sdRoundBox(p - vec3(3, .6, 0), vec3(.5, .25, .5), .1); // The round box
+    float forest = sdForest(p); // The forest (trees are repeated every 3 meters, excep in a 11x11 area in the center)
 
     float dist = smin(torusSphereBlendDist, terrainDist*0.2, 0.5); // smin = smooth union between the terrain and the object
-
-    float roundBoxDist = sdRoundBox(p - vec3(3, .6, 0), vec3(.5, .25, .5), .1); // A box
-
     dist = min(dist, roundBoxDist); // min = union between the previous objects and the box
-
-    float forest = sdForest(p); // A forest (trees are repeated every 3 meters, excep in a 11x11 area in the center)
-
     dist = min(dist, forest); // min = union between the previous objects and the forest
 
     return dist;
 }
 
+// Estimation of the normals (World Space)
 vec3 GetNormal(vec3 p){
     vec2 e = vec2(.01, 0);
     float d = GetDist(p);
     vec3 n = vec3(
+    // Sample the neighbours' distances from the closest object and compare them to the central point
     d-GetDist(p-e.xyy),
     d-GetDist(p-e.yxy),
     d-GetDist(p-e.yyx));
     return normalize(n);
 }
 
+// Raymarch from the origin ro along the direction rd
 float RayMarch(vec3 ro, vec3 rd){
     float d0 = 0.;
 
@@ -133,16 +153,25 @@ float RayMarch(vec3 ro, vec3 rd){
         vec3 p = ro+d0*rd;
         float dS = GetDist(p);
         d0 += dS;
-        if(dS<SURFACE_DIST || abs(d0) > MAX_DIST) break;
+        if(dS<SURFACE_DIST || abs(d0) > MAX_DIST) break;// Break if there's a collision or the max distance is reached
     }
 
     return d0;
 }
 
+// Raymarch from the origin ro along the direction rd with a smoothing parameter k
+/*
+The idea behind soft shadows is this:
+Raymarch from the surface of the object towards the light source -> get distance d
+If there is a collision, the shadow factor needs to be 0 (hard shadow)
+If you ALMOST collide with an other object, the starting object needs to be darkened depending by:
+- how much you missed the collision with the other object (h variable in the following code).
+- the distance between the point to shade and the closest scene object (t variable)
+*/
 float softshadow( in vec3 ro, in vec3 rd, float k )
 {
     float res = 1.0;
-    for( float t=SURFACE_DIST_SHADOW; t<MAX_DIST; )
+    for( float t=SURFACE_DIST_SHADOW; t<MAX_STEPS_SHADOW; )
     {
         float h = GetDist(ro + rd*t); // How close my point was to hit an object
         if( h<SURFACE_DIST )
@@ -154,12 +183,11 @@ float softshadow( in vec3 ro, in vec3 rd, float k )
     return res;
 }
 
-// Returns the (diffuse+specular) * shadow factor
+// Returns the diffuse+specular (Blinn-phong)
 float GetLight(vec3 pos, vec3 normal, vec3 lightDir){
-    // Blinn-phong
     vec3 viewDir = normalize(uCamPosition-pos);
-
     vec3 halfDir = normalize(lightDir + viewDir);
+
     float specAngle = clamp(dot(halfDir, normal), 0., 1.);
     float specular = clamp(pow(specAngle, uShininess), 0., 1.);
 
@@ -169,11 +197,11 @@ float GetLight(vec3 pos, vec3 normal, vec3 lightDir){
     return res;
 }
 
-//Calculate the ray direction starting from a certain screen position (given the Field of View)
+//Calculate the ray direction starting from a certain screen position
 vec3 getRayDir(vec2 uv) {
     vec2 h = vec2(
-    tan(uFov / 2.0) * (uScreenSize.x / uScreenSize.y),
-    tan(uFov / 2.0)
+        tan(uFov / 2.0) * (uScreenSize.x / uScreenSize.y),
+        tan(uFov / 2.0)
     );
     vec3 pCam = vec3(uv * h, -1.0);
     // Convert from eye space (uv) to world space with the inverse view matrix:
@@ -185,7 +213,9 @@ vec4 TriplanarMapping(sampler2D xzSampler, sampler2D xySampler, sampler2D yzSamp
     vec4 xy_projection = texture(xySampler, pos.xy * TILING_FACTOR);
     vec4 yz_projection = texture(yzSampler, pos.yz * TILING_FACTOR);
 
-    vec4 albedo = yz_projection * normal.x + xz_projection * normal.y + xy_projection * normal.z;
+    vec3 absNormal = pow(abs(normal), vec3(TRIPLANAR_BLEND_SHARPNESS));
+
+    vec4 albedo = (yz_projection * absNormal.x + xz_projection * absNormal.y + xy_projection * absNormal.z) / (absNormal.x + absNormal.y + absNormal.z);
     return albedo;
 }
 
@@ -194,7 +224,7 @@ void main()
     // My point light position
     vec3 lightPos = vec3(5.0, 5.0, 6);
 
-    vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; // [-1, 1]x [-1, 1]
+    vec2 uv = (gl_FragCoord.xy/uScreenSize) * 2.0 - 1.0; // NDC [-1, 1]x [-1, 1]
 
     vec3 ray_direction = getRayDir(uv);
 
@@ -203,9 +233,7 @@ void main()
     fragColor = vec4(0.0, 0.0, 0.0, 0.0); // default color
     if(d < MAX_DIST){
         vec3 pos = vec3(uCamPosition + d * ray_direction); // position of the point in the ""point cloud""
-
         vec3 lightDir = normalize(lightPos-pos);
-
         vec3 normal = GetNormal(pos);
 
         float diffuseSpec = GetLight(pos, normal, lightDir);
@@ -213,7 +241,9 @@ void main()
         // For shadows, raymarch from the collision point towards the light source. K is a smoothing factor
         float shadow = softshadow(pos, lightDir, SHADOW_K);
 
+        // Texturing: a texture on the top (xz plane) and a texture for the sides (xy and yz planes)
         vec4 albedo = TriplanarMapping(textureTop, textureSides, textureSides, pos, normal);
+
         fragColor = albedo * clamp(diffuseSpec * shadow + BASE_DIFFUSE, 0., 1.);
     }
 
