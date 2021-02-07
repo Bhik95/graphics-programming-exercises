@@ -2,11 +2,11 @@
 
 #define MAX_STEPS 200
 #define MAX_DIST 100.
-#define SURFACE_DIST .01
-#define TILING_FACTOR 0.1
-#define BASE_DIFFUSE 0.15
+#define SURFACE_DIST .001
+#define TILING_FACTOR 0.4
+#define BASE_DIFFUSE 0.1
 #define SURFACE_DIST_SHADOW .1
-#define SHADOW_K 32
+#define SHADOW_K 8
 
 out vec4 fragColor;
 
@@ -61,6 +61,12 @@ float sdVerticalCapsule( vec3 p, float h, float r )
     return length( p ) - r;
 }
 
+float sdBox( vec3 p, vec3 b )
+{
+    vec3 q = abs(p) - b;
+    return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
 float sdCone( vec3 p, vec2 c, float h )
 {
     float q = length(p.xz);
@@ -77,19 +83,37 @@ float sdTree(vec3 p){
     return min(vase, min(trunk,cones));
 }
 
-float GetDist(vec3 p){
+float sdForest(vec3 p){
+    float c = 3;
+    vec3 q = mod(p+0.5*c,c)-0.5*c; // q is for repetition
+    q.y = p.y;
+    return max(sdTree(q), -sdBox(p, vec3(11, 10, 11))); // subtraction: (forest - area (box) without a forest)
+}
+
+float sdTorusSphereLerp(vec3 p){
     float sphereDist = sdSphere(p - vec3(0, 1, 0), 1.0);
     float torusDist = sdTorus(p - vec3(0, 1, 0), vec2(1.0, 0.1));
-    float planeDist = p.y;
-
     float t = sin(uTime)*0.5+0.5;
-    float torusSphereBlend = smin(t*sphereDist+(1-t)*torusDist, planeDist*.2, 0.5);
+    return t*sphereDist+(1-t)*torusDist;
+}
 
-    float roundBoxDist = sdRoundBox(p - vec3(0, .6, -10), vec3(.5, .25, .5), .1);
+float GetDist(vec3 p){
 
-    float tree1 = sdTree(p - vec3(6, 0, -6));
+    float torusSphereBlendDist = sdTorusSphereLerp(p); // The object that lerps between a sphere and a torus through time
 
-    return min(min(roundBoxDist, tree1), torusSphereBlend);
+    float terrainDist = p.y; // The terrain (xz plan)
+
+    float dist = smin(torusSphereBlendDist, terrainDist*0.2, 0.5); // smin = smooth union between the terrain and the object
+
+    float roundBoxDist = sdRoundBox(p - vec3(3, .6, 0), vec3(.5, .25, .5), .1); // A box
+
+    dist = min(dist, roundBoxDist); // min = union between the previous objects and the box
+
+    float forest = sdForest(p); // A forest (trees are repeated every 3 meters, excep in a 11x11 area in the center)
+
+    dist = min(dist, forest); // min = union between the previous objects and the forest
+
+    return dist;
 }
 
 vec3 GetNormal(vec3 p){

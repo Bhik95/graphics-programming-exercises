@@ -78,7 +78,7 @@ int main()
     glGenTextures(1, &concreteTextureId);
     loadTexture("textures/concrete.png", concreteTextureId, GL_RGBA);
     glGenTextures(1, &groundTextureId);
-    loadTexture("textures/ground.png", groundTextureId, GL_RGB);
+    loadTexture("textures/moss.png", groundTextureId, GL_RGBA);
 
     shaderProgram->use();
     shaderProgram->setInt("textureSides", 0);
