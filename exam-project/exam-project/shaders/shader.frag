@@ -96,7 +96,7 @@ float sdTree(vec3 p){
     float cone1 = sdCone(p - vec3(0, 2.7, 0), vec2(0.86602540378, 0.5), 1.5);
     float cone2 = sdCone(p - vec3(0, 1.7, 0), vec2(0.70710678118, 0.70710678118), 1.);
     float cones = min(cone1, cone2);
-    float trunk = sdVerticalCapsule(p - vec3(0, -0.5, 0), 1.0, 0.1);
+    float trunk = sdVerticalCapsule(p - vec3(0, -0.5, 0), 1.5, 0.1);
     return min(trunk,cones);
 }
 
@@ -252,6 +252,7 @@ void main()
         vec4 albedo = TriplanarMapping(textureTop, textureSides, textureSides, pos, normal);
 
         fragColor = albedo * clamp(diffuseSpec * shadow + BASE_DIFFUSE, 0., 1.);
+        //fragColor(normal, 1);
     }
 
 
