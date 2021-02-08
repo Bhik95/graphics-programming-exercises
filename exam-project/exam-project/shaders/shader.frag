@@ -231,7 +231,11 @@ void main()
     float d = RayMarch(uCamPosition, ray_direction);
 
     fragColor = vec4(0.0, 0.0, 0.0, 0.0); // default color
-    if(d < MAX_DIST){
+    if(d < 0){
+        // Show red color if camera is inside an object
+       fragColor = vec4(0.5, 0, 0, 1);
+    }
+    else if(d < MAX_DIST){
         vec3 pos = vec3(uCamPosition + d * ray_direction); // position of the point in the ""point cloud""
         vec3 lightDir = normalize(lightPos-pos);
         vec3 normal = GetNormal(pos);
