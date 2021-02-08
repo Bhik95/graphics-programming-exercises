@@ -101,11 +101,15 @@ float sdTree(vec3 p){
     return min(vase, min(trunk,cones));
 }
 
+// Infinite Repetition operator, where c is the repetition period
+vec3 transformInfiniteRepeat(vec3 p, float c){
+    return mod(p+0.5*c,c)-0.5*c;
+}
+
 // Signed distance field of a forest (repeated trees) with a central area with no trees
 float sdForest(vec3 p){
-    float c = 3;
-    vec3 q = mod(p+0.5*c,c)-0.5*c; // q is for repetition
-    q.y = p.y;
+    vec3 q = transformInfiniteRepeat(p, 3);
+    q.y = p.y; // Avoid repeating along the y axis
     float repeatedTreesDist = sdTree(q);
     return max(repeatedTreesDist, -sdBox(p, vec3(11, 10, 11))); // Boolean Subtraction: max(d1, -d2)
 }
