@@ -120,7 +120,7 @@ float sdTorusSphereLerp(vec3 p){
 }
 
 // Signed distance field of the WHOLE SCENE
-float GetDist(vec3 p){
+float sdScene(vec3 p){
     float torusSphereBlendDist = sdTorusSphereLerp(p - vec3(0, 1, 0)); // The object that lerps between a sphere and a torus through time
     float terrainDist = p.y; // The terrain (xz plan)
     float roundBoxDist = sdRoundBox(p - vec3(3, .6, 0), vec3(.5, .25, .5), .1); // The round box
@@ -136,12 +136,12 @@ float GetDist(vec3 p){
 // Estimation of the normals (World Space)
 vec3 GetNormal(vec3 p){
     vec2 e = vec2(.01, 0);
-    float d = GetDist(p);
+    float d = sdScene(p);
     vec3 n = vec3(
     // Sample the neighbours' distances from the closest object and compare them to the central point
-    d-GetDist(p-e.xyy),
-    d-GetDist(p-e.yxy),
-    d-GetDist(p-e.yyx));
+    d-sdScene(p-e.xyy),
+    d-sdScene(p-e.yxy),
+    d-sdScene(p-e.yyx));
     return normalize(n);
 }
 
@@ -151,7 +151,7 @@ float RayMarch(vec3 ro, vec3 rd){
 
     for(int i=0; i<MAX_STEPS; i++){
         vec3 p = ro+d0*rd;
-        float dS = GetDist(p);
+        float dS = sdScene(p);
         d0 += dS;
         if(dS<SURFACE_DIST || abs(d0) > MAX_DIST) break;// Break if there's a collision or the max distance is reached
     }
@@ -173,7 +173,7 @@ float softshadow( in vec3 ro, in vec3 rd, float k )
     float res = 1.0;
     for( float t=SURFACE_DIST_SHADOW; t<MAX_STEPS_SHADOW; )
     {
-        float h = GetDist(ro + rd*t); // How close my point was to hit an object
+        float h = sdScene(ro + rd*t); // How close my point was to hit an object
         if( h<SURFACE_DIST )
         return 0.0;
         // t ends up being the distance between the point to shade and the closest scene object
