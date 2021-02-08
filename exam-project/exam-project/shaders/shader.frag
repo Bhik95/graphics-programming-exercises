@@ -91,14 +91,13 @@ float sdCone( vec3 p, vec2 c, float h )
     return max(dot(c.xy,vec2(q,p.y)),-h-p.y);
 }
 
-// Signed distance field of a tree in a vase
+// Signed distance field of a tree
 float sdTree(vec3 p){
-    float vase = sdCappedCone(p, 0.4, 0.4, 0.6, 0.1);
     float cone1 = sdCone(p - vec3(0, 2.7, 0), vec2(0.86602540378, 0.5), 1.5);
     float cone2 = sdCone(p - vec3(0, 1.7, 0), vec2(0.70710678118, 0.70710678118), 1.);
     float cones = min(cone1, cone2);
-    float trunk = sdVerticalCapsule(p - vec3(0, 0.5, 0), 1.0, 0.1);
-    return min(vase, min(trunk,cones));
+    float trunk = sdVerticalCapsule(p - vec3(0, -0.5, 0), 1.0, 0.1);
+    return min(trunk,cones);
 }
 
 // Infinite Repetition operator, where c is the repetition period
