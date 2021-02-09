@@ -136,16 +136,15 @@ float sdScene(vec3 p){
     return dist;
 }
 
-// Estimation of the normals (World Space)
-vec3 getNormal(vec3 p){
-    vec2 e = vec2(.01, 0);
-    float d = sdScene(p);
-    vec3 n = vec3(
-    // Sample the neighbours' distances from the closest object and compare them to the central point
-    d-sdScene(p-e.xyy),
-    d-sdScene(p-e.yxy),
-    d-sdScene(p-e.yyx));
-    return normalize(n);
+//Calculate the ray direction starting from a certain screen position
+vec3 getRayDir(vec2 uv) {
+    vec2 h = vec2(
+    tan(uFov / 2.0) * (uScreenSize.x / uScreenSize.y),
+    tan(uFov / 2.0)
+    );
+    vec3 pCam = vec3(uv * h, -1.0);
+    // Convert from eye space (uv) to world space with the inverse view matrix:
+    return normalize((inverse(cameraViewMat) * vec4(pCam, 0.0)).xyz);
 }
 
 // Raymarch from the origin ro along the direction rd
@@ -160,6 +159,32 @@ float rayMarch(vec3 ro, vec3 rd){
     }
 
     return d0;
+}
+
+// Estimation of the normals (World Space)
+vec3 getNormal(vec3 p){
+    vec2 e = vec2(.01, 0);
+    float d = sdScene(p);
+    vec3 n = vec3(
+    // Sample the neighbours' distances from the closest object and compare them to the central point
+    d-sdScene(p-e.xyy),
+    d-sdScene(p-e.yxy),
+    d-sdScene(p-e.yyx));
+    return normalize(n);
+}
+
+// Returns the diffuse+specular (Blinn-phong)
+float getLight(vec3 pos, vec3 normal, vec3 lightDir){
+    vec3 viewDir = normalize(uCamPosition-pos);
+    vec3 halfDir = normalize(lightDir + viewDir);
+
+    float specAngle = clamp(dot(halfDir, normal), 0., 1.);
+    float specular = clamp(pow(specAngle, uShininess), 0., 1.);
+
+    float dif = clamp(dot(normal, lightDir), 0., 1.);
+    float res = clamp(dif + specular, 0., 1.);
+
+    return res;
 }
 
 // Raymarch from the origin ro along the direction rd with a smoothing parameter k
@@ -184,31 +209,6 @@ float softshadow( in vec3 ro, in vec3 rd, float k )
         t += h;
     }
     return res;
-}
-
-// Returns the diffuse+specular (Blinn-phong)
-float getLight(vec3 pos, vec3 normal, vec3 lightDir){
-    vec3 viewDir = normalize(uCamPosition-pos);
-    vec3 halfDir = normalize(lightDir + viewDir);
-
-    float specAngle = clamp(dot(halfDir, normal), 0., 1.);
-    float specular = clamp(pow(specAngle, uShininess), 0., 1.);
-
-    float dif = clamp(dot(normal, lightDir), 0., 1.);
-    float res = clamp(dif + specular, 0., 1.);
-
-    return res;
-}
-
-//Calculate the ray direction starting from a certain screen position
-vec3 getRayDir(vec2 uv) {
-    vec2 h = vec2(
-        tan(uFov / 2.0) * (uScreenSize.x / uScreenSize.y),
-        tan(uFov / 2.0)
-    );
-    vec3 pCam = vec3(uv * h, -1.0);
-    // Convert from eye space (uv) to world space with the inverse view matrix:
-    return normalize((inverse(cameraViewMat) * vec4(pCam, 0.0)).xyz);
 }
 
 vec4 triplanarMapping(sampler2D xzSampler, sampler2D xySampler, sampler2D yzSampler, vec3 pos, vec3 normal){
