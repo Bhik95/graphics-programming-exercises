@@ -196,7 +196,7 @@ If you ALMOST collide with an other object, the starting object needs to be dark
 - how much you missed the collision with the other object (h variable in the following code).
 - the distance between the point to shade and the closest scene object (t variable)
 */
-float softshadow( in vec3 ro, in vec3 rd, float k )
+float softShadow( in vec3 ro, in vec3 rd, float k )
 {
     float res = 1.0;
     for( float t=SURFACE_DIST_SHADOW; t<MAX_STEPS_SHADOW; )
@@ -246,7 +246,7 @@ void main()
         float diffuseSpec = getLight(pos, normal, lightDir);
 
         // For shadows, raymarch from the collision point towards the light source. K is a smoothing factor
-        float shadow = softshadow(pos, lightDir, SHADOW_K);
+        float shadow = softShadow(pos, lightDir, SHADOW_K);
 
         // Texturing: a texture on the top (xz plane) and a texture for the sides (xy and yz planes)
         vec4 albedo = triplanarMapping(textureTop, textureSides, textureSides, pos, normal);
