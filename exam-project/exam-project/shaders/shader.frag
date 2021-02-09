@@ -137,7 +137,7 @@ float sdScene(vec3 p){
 }
 
 // Estimation of the normals (World Space)
-vec3 GetNormal(vec3 p){
+vec3 getNormal(vec3 p){
     vec2 e = vec2(.01, 0);
     float d = sdScene(p);
     vec3 n = vec3(
@@ -149,7 +149,7 @@ vec3 GetNormal(vec3 p){
 }
 
 // Raymarch from the origin ro along the direction rd
-float RayMarch(vec3 ro, vec3 rd){
+float rayMarch(vec3 ro, vec3 rd){
     float d0 = 0.;
 
     for(int i=0; i<MAX_STEPS; i++){
@@ -187,7 +187,7 @@ float softshadow( in vec3 ro, in vec3 rd, float k )
 }
 
 // Returns the diffuse+specular (Blinn-phong)
-float GetLight(vec3 pos, vec3 normal, vec3 lightDir){
+float getLight(vec3 pos, vec3 normal, vec3 lightDir){
     vec3 viewDir = normalize(uCamPosition-pos);
     vec3 halfDir = normalize(lightDir + viewDir);
 
@@ -211,7 +211,7 @@ vec3 getRayDir(vec2 uv) {
     return normalize((inverse(cameraViewMat) * vec4(pCam, 0.0)).xyz);
 }
 
-vec4 TriplanarMapping(sampler2D xzSampler, sampler2D xySampler, sampler2D yzSampler, vec3 pos, vec3 normal){
+vec4 triplanarMapping(sampler2D xzSampler, sampler2D xySampler, sampler2D yzSampler, vec3 pos, vec3 normal){
     vec4 xz_projection = texture(xzSampler, pos.xz * TILING_FACTOR);
     vec4 xy_projection = texture(xySampler, pos.xy * TILING_FACTOR);
     vec4 yz_projection = texture(yzSampler, pos.yz * TILING_FACTOR);
@@ -231,7 +231,7 @@ void main()
 
     vec3 ray_direction = getRayDir(uv);
 
-    float d = RayMarch(uCamPosition, ray_direction);
+    float d = rayMarch(uCamPosition, ray_direction);
 
     fragColor = vec4(0.0, 0.0, 0.0, 0.0); // default color
     if(d < 0){
@@ -241,15 +241,15 @@ void main()
     else if(d < MAX_DIST){
         vec3 pos = vec3(uCamPosition + d * ray_direction); // position of the point in the ""point cloud""
         vec3 lightDir = normalize(lightPos-pos);
-        vec3 normal = GetNormal(pos);
+        vec3 normal = getNormal(pos);
 
-        float diffuseSpec = GetLight(pos, normal, lightDir);
+        float diffuseSpec = getLight(pos, normal, lightDir);
 
         // For shadows, raymarch from the collision point towards the light source. K is a smoothing factor
         float shadow = softshadow(pos, lightDir, SHADOW_K);
 
         // Texturing: a texture on the top (xz plane) and a texture for the sides (xy and yz planes)
-        vec4 albedo = TriplanarMapping(textureTop, textureSides, textureSides, pos, normal);
+        vec4 albedo = triplanarMapping(textureTop, textureSides, textureSides, pos, normal);
 
         fragColor = albedo * clamp(diffuseSpec * shadow + BASE_DIFFUSE, 0., 1.);
         //fragColor(normal, 1);
