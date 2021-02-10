@@ -216,9 +216,9 @@ vec4 triplanarMapping(sampler2D xzSampler, sampler2D xySampler, sampler2D yzSamp
     vec4 xy_projection = texture(xySampler, pos.xy * TILING_FACTOR);
     vec4 yz_projection = texture(yzSampler, pos.yz * TILING_FACTOR);
 
-    vec3 absNormal = pow(abs(normal), vec3(TRIPLANAR_BLEND_SHARPNESS));
+    vec3 weight = pow(abs(normal), vec3(TRIPLANAR_BLEND_SHARPNESS));
 
-    vec4 albedo = (yz_projection * absNormal.x + xz_projection * absNormal.y + xy_projection * absNormal.z) / (absNormal.x + absNormal.y + absNormal.z);
+    vec4 albedo = (yz_projection * weight.x + xz_projection * weight.y + xy_projection * weight.z) / (weight.x + weight.y + weight.z);
     return albedo;
 }
 
